@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, Switch, StyleSheet, Image } from 'react-native';
 import { useTheme } from './Theme';
 
-export default function SwitchFeature() {
-  const [isEnabled, setIsEnabled] = useState(false);
+type SwitchFeatureProps = {
+  isEnabled: boolean;
+  setIsEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+export default function SwitchFeature({ isEnabled, setIsEnabled }: SwitchFeatureProps) {
   const { colors } = useTheme();
 
   const toggleSwitch = () => setIsEnabled(prev => !prev);
@@ -37,7 +41,6 @@ export default function SwitchFeature() {
         />
       )}
     </View>
-    
   );
 }
 

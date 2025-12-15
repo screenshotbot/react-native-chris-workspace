@@ -15,6 +15,7 @@ type ThemeContextType = {
   theme: Theme;
   colors: ThemeColors;
   toggleTheme: () => void;
+  resetTheme: () => void;
 };
 
 // Colors
@@ -37,6 +38,7 @@ const ThemeContext = createContext<ThemeContextType>({
   theme: 'light',
   colors: lightColors,
   toggleTheme: () => {},
+  resetTheme: () => {},
 });
 
 // Provider
@@ -47,10 +49,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
+  const resetTheme = () => {
+    setTheme('light');
+  };
+
   const colors = theme === 'light' ? lightColors : darkColors;
 
   return (
-    <ThemeContext.Provider value={{ theme, colors, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, colors, toggleTheme, resetTheme }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -59,7 +65,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 // Hook
 export const useTheme = () => useContext(ThemeContext);
 
-// ✅ Theme toggle UI
+// Theme toggle UI
 export const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
