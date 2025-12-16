@@ -1,10 +1,13 @@
-// MyFeature.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, Button, StyleSheet, Alert } from 'react-native';
 import { useTheme } from './Theme';
 
-export default function MyFeature() {
-  const [clickCount, setClickCount] = useState(0);
+type MyFeatureProps = {
+  clickCount: number;
+  setClickCount: React.Dispatch<React.SetStateAction<number>>;
+};
+
+export default function MyFeature({ clickCount, setClickCount }: MyFeatureProps) {
   const { colors } = useTheme();
 
   const handlePress = () => {

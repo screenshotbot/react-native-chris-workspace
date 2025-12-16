@@ -1,60 +1,24 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-/**import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
-import MyFeature from './MyFeature';
-
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <MyFeature />
-      <AppContent />
-    </SafeAreaProvider>
-  );
-}
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
-
-export default App;*/
-
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Button } from 'react-native';
 import MyFeature from './MyFeature';
 import SwitchFeature from './SwitchFeature';
+import TimerFeature from './TimerFeature';
 import { ThemeProvider, ThemeToggle, useTheme } from './Theme';
 
 const AppContent = () => {
-  const { colors } = useTheme(); // use the theme colors directly
+  const { colors, resetTheme } = useTheme();
+  const [clickCount, setClickCount] = useState(0);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+  const handleResetAll = () => {
+    setClickCount(0);
+    setIsEnabled(false);
+    setTimerSeconds(0);
+    setIsTimerRunning(false);
+    resetTheme();
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -62,11 +26,27 @@ const AppContent = () => {
         Hello, world!
       </Text>
 
-      <MyFeature />
-      <SwitchFeature />
+      <MyFeature clickCount={clickCount} setClickCount={setClickCount} />
+      <SwitchFeature isEnabled={isEnabled} setIsEnabled={setIsEnabled} />
+
+      <TimerFeature
+        seconds={timerSeconds}
+        setSeconds={setTimerSeconds}
+        isRunning={isTimerRunning}
+        setIsRunning={setIsTimerRunning}
+      />
 
       {/* Theme toggle switch */}
       <ThemeToggle />
+
+      {/* Reset button */}
+      <View style={styles.resetContainer}>
+        <Button
+          title="Reset All"
+          onPress={handleResetAll}
+          color="#FF3B30"
+        />
+      </View>
     </View>
   );
 };
@@ -93,6 +73,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
   },
+  resetContainer: {
+    marginTop: 30,
+    width: 200,
+  },
 });
-
-
