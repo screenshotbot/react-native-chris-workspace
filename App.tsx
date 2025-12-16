@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Button } from 'react-native';
 import MyFeature from './MyFeature';
 import SwitchFeature from './SwitchFeature';
 import TimerFeature from './TimerFeature';
+import CoinFlipFeature from './CoinFlipFeature';
 import { ThemeProvider, ThemeToggle, useTheme } from './Theme';
 
 const AppContent = () => {
@@ -11,6 +12,8 @@ const AppContent = () => {
   const [isEnabled, setIsEnabled] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [coinResult, setCoinResult] = useState('');
+  const [coinFlips, setCoinFlips] = useState(0);
 
   const handleResetAll = () => {
     setClickCount(0);
@@ -26,14 +29,21 @@ const AppContent = () => {
         Hello, world!
       </Text>
 
-      <MyFeature clickCount={clickCount} setClickCount={setClickCount} />
+      {/* <MyFeature clickCount={clickCount} setClickCount={setClickCount} /> */}
       <SwitchFeature isEnabled={isEnabled} setIsEnabled={setIsEnabled} />
 
-      <TimerFeature
+      {/*<TimerFeature
         seconds={timerSeconds}
         setSeconds={setTimerSeconds}
         isRunning={isTimerRunning}
         setIsRunning={setIsTimerRunning}
+      />*/}
+
+      <CoinFlipFeature
+        result={coinResult}
+        setResult={setCoinResult}
+        flips={coinFlips}
+        setFlips={setCoinFlips}
       />
 
       {/* Theme toggle switch */}
