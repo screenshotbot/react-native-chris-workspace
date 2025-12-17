@@ -5,16 +5,15 @@
 import { AppRegistry } from 'react-native';
 import { name as appName } from './app.json';
 
-// Set this to true to enable Storybook mode
-const ENABLE_STORYBOOK = false;
+// Set to true to use Storybook, false to use your app
+const USE_STORYBOOK = false;
 
-let AppComponent;
+let RootComponent;
 
-if (ENABLE_STORYBOOK) {
-  const StorybookUI = require('./.storybook').default;
-  AppComponent = StorybookUI;
+if (USE_STORYBOOK) {
+  RootComponent = require('./.rnstorybook').default;
 } else {
-  AppComponent = require('./App').default;
+  RootComponent = require('./App').default;
 }
 
-AppRegistry.registerComponent(appName, () => AppComponent);
+AppRegistry.registerComponent(appName, () => RootComponent);

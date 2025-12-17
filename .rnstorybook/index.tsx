@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { view } from '@storybook/react-native';
+import { view } from './storybook.requires';
 
 const StorybookUIRoot = view.getStorybookUI({
   storage: {
@@ -8,4 +8,4 @@ const StorybookUIRoot = view.getStorybookUI({
   },
 });
 
-export { StorybookUIRoot as view };
+export default StorybookUIRoot;
