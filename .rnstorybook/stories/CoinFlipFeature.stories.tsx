@@ -72,3 +72,22 @@ const TailsResultStory = () => {
 export const WithTailsResult: StoryObj<typeof CoinFlipFeature> = {
   render: () => <TailsResultStory />,
 };
+
+// Story showing many flips have happened
+const ManyFlipsStory = () => {
+  const [result, setResult] = useState('HEADS');
+  const [flips, setFlips] = useState(99);
+
+  return (
+    <CoinFlipFeature
+      result={result}
+      setResult={setResult}
+      flips={flips}
+      setFlips={setFlips}
+    />
+  );
+};
+
+export const ManyFlips: StoryObj<typeof CoinFlipFeature> = {
+  render: () => <ManyFlipsStory />,
+};

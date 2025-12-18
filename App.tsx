@@ -21,6 +21,8 @@ const AppContent = () => {
     setTimerSeconds(0);
     setIsTimerRunning(false);
     resetTheme();
+    setCoinResult('');
+    setCoinFlips(0);
   };
 
   return (
