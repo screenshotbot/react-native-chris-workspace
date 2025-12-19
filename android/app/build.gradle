@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.facebook.testing.screenshot"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -107,6 +108,11 @@ android {
     }
 }
 
+screenshots {
+    testApkTarget = 'packageDebug'
+    connectedAndroidTestTarget = 'connectedDebugAndroidTest'
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
@@ -116,4 +122,8 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Screenshot testing dependencies
+    androidTestImplementation("com.facebook.testing.screenshot:core:0.15.0")
+    androidTestImplementation("com.facebook.testing.screenshot:layout-hierarchy-common:0.15.0")
 }
