@@ -1,18 +1,27 @@
 package com.testapp
 
+import android.Manifest
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
 import com.facebook.testing.screenshot.ViewHelpers
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ScreenshotTest {
+
+    @get:Rule
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
+        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    )
 
     @Test
     fun testSimpleTextView() {
