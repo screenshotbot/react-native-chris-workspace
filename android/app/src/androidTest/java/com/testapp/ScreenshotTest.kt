@@ -52,8 +52,8 @@ class ScreenshotTest {
         )
 
         ViewHelpers.setupView(timerView)
-            .setExactWidthDp(350)
-            .setExactHeightDp(300)
+            .setExactWidthDp(800)
+            .setExactHeightDp(800)
             .layout()
 
         Screenshot.snap(timerView)
