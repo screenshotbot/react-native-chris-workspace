@@ -66,6 +66,10 @@ yarn-error.log
 # testing
 /coverage
 
+# Screenshot test outputs
+android/app/screenshots-default/
+android/app/screenshots/failures/
+
 # Yarn
 .yarn/*
 !.yarn/patches
