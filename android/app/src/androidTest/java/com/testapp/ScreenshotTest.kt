@@ -174,6 +174,42 @@ class ScreenshotTest {
             .record()
     }
 
+    // Mimicking SwitchFeature.stories.tsx - Enabled state
+    @Test
+    fun testSwitchFeatureEnabled() {
+        val switchFeatureView = createSwitchFeatureView(
+            isEnabled = true
+        )
+
+        // Measure the view naturally with a constrained width
+        val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(dpToPx(400), android.view.View.MeasureSpec.EXACTLY)
+        val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        switchFeatureView.measure(widthSpec, heightSpec)
+        switchFeatureView.layout(0, 0, switchFeatureView.measuredWidth, switchFeatureView.measuredHeight)
+
+        // Log the dimensions for verification
+        android.util.Log.d("ScreenshotTest", "SwitchFeature view dimensions: ${switchFeatureView.measuredWidth} x ${switchFeatureView.measuredHeight}")
+
+        // Save to external storage
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            switchFeatureView.measuredWidth,
+            switchFeatureView.measuredHeight,
+            android.graphics.Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bitmap)
+        switchFeatureView.draw(canvas)
+
+        val file = java.io.File("/sdcard/Download/switch_feature_enabled.png")
+        java.io.FileOutputStream(file).use { out ->
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+        }
+        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
+
+        Screenshot.snap(switchFeatureView)
+            .setName("switch_feature_enabled")
+            .record()
+    }
+
     // Helper function to create a timer view mimicking TimerFeature component
     private fun createTimerView(seconds: Int, isRunning: Boolean): LinearLayout {
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -436,6 +472,102 @@ class ScreenshotTest {
         counterParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
         counter.layoutParams = counterParams
         container.addView(counter)
+
+        return container
+    }
+
+    // Helper function to create SwitchFeature view
+    private fun createSwitchFeatureView(isEnabled: Boolean): LinearLayout {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val container = LinearLayout(context)
+        container.orientation = LinearLayout.VERTICAL
+        container.setBackgroundColor(Color.WHITE)
+        container.setPadding(dpToPx(20), dpToPx(20), dpToPx(20), dpToPx(20))
+
+        // Label
+        val label = TextView(context)
+        label.text = "Feature Switch"
+        label.textSize = 18f
+        label.setTextColor(Color.BLACK)
+        val labelParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        labelParams.bottomMargin = dpToPx(10)
+        labelParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
+        label.layoutParams = labelParams
+        container.addView(label)
+
+        // Switch visual representation (using a simple view to avoid animation issues)
+        val switchView = TextView(context)
+        switchView.text = if (isEnabled) "ON" else "OFF"
+        switchView.textSize = 14f
+        switchView.setTextColor(Color.WHITE)
+        switchView.setPadding(dpToPx(20), dpToPx(8), dpToPx(20), dpToPx(8))
+
+        val switchDrawable = GradientDrawable()
+        switchDrawable.cornerRadius = dpToPx(20).toFloat()
+        switchDrawable.setColor(if (isEnabled) Color.parseColor("#34C759") else Color.parseColor("#767577"))
+        switchView.background = switchDrawable
+
+        val switchParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        switchParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
+        switchView.layoutParams = switchParams
+        container.addView(switchView)
+
+        // Status text
+        val status = TextView(context)
+        status.text = if (isEnabled) "" else "False"
+        status.textSize = 16f
+        status.setTextColor(Color.BLACK)
+        val statusParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        statusParams.topMargin = dpToPx(10)
+        statusParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
+        status.layoutParams = statusParams
+        container.addView(status)
+
+        // Conditional image (when enabled)
+        if (isEnabled) {
+            val imageView = android.widget.ImageView(context)
+            // Create a placeholder colored rectangle since we can't load URLs in tests
+            val placeholder = GradientDrawable()
+            placeholder.setColor(Color.parseColor("#E0E0E0"))
+            placeholder.cornerRadius = dpToPx(10).toFloat()
+            imageView.background = placeholder
+
+            // Add a text overlay to indicate this is a placeholder
+            val imageContainer = android.widget.FrameLayout(context)
+            val imageParams = android.widget.FrameLayout.LayoutParams(dpToPx(200), dpToPx(200))
+            imageView.layoutParams = imageParams
+            imageContainer.addView(imageView)
+
+            val placeholderText = TextView(context)
+            placeholderText.text = "Image\nPlaceholder"
+            placeholderText.textSize = 16f
+            placeholderText.setTextColor(Color.GRAY)
+            placeholderText.gravity = android.view.Gravity.CENTER
+            val textParams = android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            placeholderText.layoutParams = textParams
+            imageContainer.addView(placeholderText)
+
+            val containerParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            containerParams.topMargin = dpToPx(20)
+            containerParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
+            imageContainer.layoutParams = containerParams
+            container.addView(imageContainer)
+        }
 
         return container
     }
