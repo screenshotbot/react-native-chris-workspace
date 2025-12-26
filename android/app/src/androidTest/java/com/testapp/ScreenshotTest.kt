@@ -138,6 +138,42 @@ class ScreenshotTest {
             .record()
     }
 
+    // Mimicking MyFeature.stories.tsx
+    @Test
+    fun testMyFeature() {
+        val myFeatureView = createMyFeatureView(
+            clickCount = 3
+        )
+
+        // Measure the view naturally with a constrained width
+        val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(dpToPx(400), android.view.View.MeasureSpec.EXACTLY)
+        val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        myFeatureView.measure(widthSpec, heightSpec)
+        myFeatureView.layout(0, 0, myFeatureView.measuredWidth, myFeatureView.measuredHeight)
+
+        // Log the dimensions for verification
+        android.util.Log.d("ScreenshotTest", "MyFeature view dimensions: ${myFeatureView.measuredWidth} x ${myFeatureView.measuredHeight}")
+
+        // Save to external storage
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            myFeatureView.measuredWidth,
+            myFeatureView.measuredHeight,
+            android.graphics.Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bitmap)
+        myFeatureView.draw(canvas)
+
+        val file = java.io.File("/sdcard/Download/my_feature.png")
+        java.io.FileOutputStream(file).use { out ->
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+        }
+        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
+
+        Screenshot.snap(myFeatureView)
+            .setName("my_feature")
+            .record()
+    }
+
     // Helper function to create a timer view mimicking TimerFeature component
     private fun createTimerView(seconds: Int, isRunning: Boolean): LinearLayout {
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -340,6 +376,66 @@ class ScreenshotTest {
         statsContainer.addView(resultText)
 
         container.addView(statsContainer)
+
+        return container
+    }
+
+    // Helper function to create MyFeature view
+    private fun createMyFeatureView(clickCount: Int): LinearLayout {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val container = LinearLayout(context)
+        container.orientation = LinearLayout.VERTICAL
+        container.setBackgroundColor(Color.WHITE)
+        container.setPadding(dpToPx(20), dpToPx(20), dpToPx(20), dpToPx(20))
+
+        // Title
+        val title = TextView(context)
+        title.text = "My Feature"
+        title.textSize = 20f
+        title.setTextColor(Color.BLACK)
+        val titleParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        titleParams.bottomMargin = dpToPx(10)
+        titleParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
+        title.layoutParams = titleParams
+        container.addView(title)
+
+        // Button
+        val button = Button(context)
+        button.text = "Click Me!"
+        button.setTextColor(Color.WHITE)
+        button.isAllCaps = false
+
+        val buttonDrawable = GradientDrawable()
+        buttonDrawable.cornerRadius = dpToPx(4).toFloat()
+        buttonDrawable.setColor(Color.parseColor("#007AFF"))
+        button.background = buttonDrawable
+
+        button.setPadding(dpToPx(20), dpToPx(10), dpToPx(20), dpToPx(10))
+
+        val buttonParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        buttonParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
+        button.layoutParams = buttonParams
+        container.addView(button)
+
+        // Counter text
+        val counter = TextView(context)
+        counter.text = "Clicked $clickCount times"
+        counter.textSize = 16f
+        counter.setTextColor(Color.BLACK)
+        val counterParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        counterParams.topMargin = dpToPx(10)
+        counterParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
+        counter.layoutParams = counterParams
+        container.addView(counter)
 
         return container
     }
