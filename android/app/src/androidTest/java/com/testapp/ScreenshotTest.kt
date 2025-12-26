@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
@@ -22,6 +23,26 @@ class ScreenshotTest {
         Manifest.permission.WRITE_EXTERNAL_STORAGE,
         Manifest.permission.READ_EXTERNAL_STORAGE
     )
+
+    // Test that launches the actual app and takes a screenshot
+    @Test
+    fun testActualApp() {
+        // Launch the main activity
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+
+        // Wait for the app to fully load (React Native takes time to start)
+        Thread.sleep(15000)
+
+        // Take screenshot of the activity
+        scenario.onActivity { activity ->
+            val rootView = activity.window.decorView.rootView
+            Screenshot.snap(rootView)
+                .setName("actual_app_home")
+                .record()
+        }
+
+        scenario.close()
+    }
 
     @Test
     fun testSimpleTextView() {
@@ -51,10 +72,29 @@ class ScreenshotTest {
             isRunning = false
         )
 
-        ViewHelpers.setupView(timerView)
-            .setExactWidthDp(800)
-            .setExactHeightDp(800)
-            .layout()
+        // Measure the view naturally with a constrained width
+        val widthSpec = android.view.View.MeasureSpec.makeMeasureSpec(dpToPx(400), android.view.View.MeasureSpec.EXACTLY)
+        val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        timerView.measure(widthSpec, heightSpec)
+        timerView.layout(0, 0, timerView.measuredWidth, timerView.measuredHeight)
+
+        // Log the dimensions for verification
+        android.util.Log.d("ScreenshotTest", "Timer view dimensions: ${timerView.measuredWidth} x ${timerView.measuredHeight}")
+
+        // Also save to external storage for easier access
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            timerView.measuredWidth,
+            timerView.measuredHeight,
+            android.graphics.Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bitmap)
+        timerView.draw(canvas)
+
+        val file = java.io.File("/sdcard/Download/timer_paused_full.png")
+        java.io.FileOutputStream(file).use { out ->
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+        }
+        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
 
         Screenshot.snap(timerView)
             .setName("timer_paused")
