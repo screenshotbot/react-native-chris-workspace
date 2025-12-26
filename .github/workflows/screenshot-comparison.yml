@@ -82,9 +82,7 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: false
-          script: |
-            cd android
-            ./gradlew :app:connectedDebugAndroidTest --continue
+          script: cd android && ./gradlew :app:connectedDebugAndroidTest --continue
 
       - name: Pull screenshots from emulator
         if: always()
