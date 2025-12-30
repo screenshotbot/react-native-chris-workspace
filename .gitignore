@@ -70,6 +70,9 @@ yarn-error.log
 android/app/screenshots-default/
 android/app/screenshots/failures/
 
+# Screenshotbot generated screenshots
+**/screenshots/API*/*.png
+
 # Yarn
 .yarn/*
 !.yarn/patches
