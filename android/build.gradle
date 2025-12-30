@@ -1,3 +1,7 @@
+plugins {
+    id "io.screenshotbot.plugin" version "1.22" apply false
+}
+
 buildscript {
     ext {
         buildToolsVersion = "36.0.0"
@@ -10,16 +14,12 @@ buildscript {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
     }
     dependencies {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
         classpath("com.facebook.testing.screenshot:plugin:0.15.0")
-        classpath("io.screenshotbot:screenshotbot-gradle-plugin:1.22")
     }
 }
 
