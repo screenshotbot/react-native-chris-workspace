@@ -89,17 +89,18 @@ jobs:
           adb pull /sdcard/Download/ ./screenshots/ || true
 
       - name: Upload to Screenshotbot
-        if: always()
+        if: always() && env.SCREENSHOTBOT_API_KEY != ''
         env:
           SCREENSHOTBOT_API_KEY: ${{ secrets.SCREENSHOTBOT_API_KEY }}
           SCREENSHOTBOT_API_SECRET: ${{ secrets.SCREENSHOTBOT_API_SECRET }}
         run: |
           # Install Screenshotbot CLI
-          curl -L https://screenshotbot.io/download/cli/linux -o screenshotbot
+          wget -O screenshotbot https://github.com/screenshotbot/screenshotbot-oss/releases/latest/download/screenshotbot-linux || \
+          curl -L https://api.screenshotbot.io/api/recorder-run -o screenshotbot
           chmod +x screenshotbot
 
           # Upload screenshots
-          ./screenshotbot upload \
+          ./screenshotbot \
             --api-key "$SCREENSHOTBOT_API_KEY" \
             --api-secret "$SCREENSHOTBOT_API_SECRET" \
             --directory screenshots/ \
