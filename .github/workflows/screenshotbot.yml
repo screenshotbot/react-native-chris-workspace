@@ -72,18 +72,40 @@ jobs:
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
 
-      - name: Run screenshot tests and upload to Screenshotbot
+      - name: Run screenshot tests
         uses: reactivecircus/android-emulator-runner@v2
-        env:
-          SCREENSHOTBOT_API_KEY: ${{ secrets.SCREENSHOTBOT_API_KEY }}
-          SCREENSHOTBOT_API_SECRET: ${{ secrets.SCREENSHOTBOT_API_SECRET }}
         with:
           api-level: 30
           arch: x86_64
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
-          script: cd android && ./gradlew recordAndVerifyDebugAndroidScreenshotbotCI
+          script: cd android && ./gradlew connectedDebugAndroidTest
+
+      - name: Pull screenshots from emulator
+        if: always()
+        run: |
+          mkdir -p screenshots
+          adb pull /sdcard/Download/ ./screenshots/ || true
+
+      - name: Upload to Screenshotbot
+        if: always()
+        env:
+          SCREENSHOTBOT_API_KEY: ${{ secrets.SCREENSHOTBOT_API_KEY }}
+          SCREENSHOTBOT_API_SECRET: ${{ secrets.SCREENSHOTBOT_API_SECRET }}
+        run: |
+          # Install Screenshotbot CLI
+          curl -L https://screenshotbot.io/download/cli/linux -o screenshotbot
+          chmod +x screenshotbot
+
+          # Upload screenshots
+          ./screenshotbot upload \
+            --api-key "$SCREENSHOTBOT_API_KEY" \
+            --api-secret "$SCREENSHOTBOT_API_SECRET" \
+            --directory screenshots/ \
+            --channel android-screenshots \
+            --branch "$GITHUB_REF_NAME" \
+            --commit "$GITHUB_SHA"
 
       - name: Upload test results
         if: always()

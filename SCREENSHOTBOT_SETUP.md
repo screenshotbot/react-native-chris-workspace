@@ -42,21 +42,38 @@ Add these secrets to your GitHub repository:
 
 ### Local Development
 
-**Record and verify screenshots locally:**
+**Run screenshot tests:**
 ```bash
 cd android
-./gradlew recordAndVerifyDebugAndroidScreenshotbotCI
+./gradlew connectedDebugAndroidTest
 ```
 
-This will:
-1. Run all screenshot tests
-2. Generate screenshots
-3. Upload them to Screenshotbot
-4. Compare against baseline images
+**Pull screenshots from device:**
+```bash
+adb pull /sdcard/Download/ ./screenshots/
+```
+
+**Upload to Screenshotbot manually:**
+```bash
+# Download Screenshotbot CLI
+curl -L https://screenshotbot.io/download/cli/$(uname -s | tr '[:upper:]' '[:lower:]') -o screenshotbot
+chmod +x screenshotbot
+
+# Upload screenshots
+./screenshotbot upload \
+  --api-key "$SCREENSHOTBOT_API_KEY" \
+  --api-secret "$SCREENSHOTBOT_API_SECRET" \
+  --directory screenshots/ \
+  --channel android-screenshots
+```
 
 ### CI/CD (GitHub Actions)
 
-The workflow automatically runs screenshot tests on every push/PR and uploads results to Screenshotbot.
+The workflow automatically:
+1. Runs screenshot tests on emulator
+2. Pulls screenshots from emulator
+3. Uploads them to Screenshotbot
+4. Compares against baseline images
 
 ## How It Works
 
