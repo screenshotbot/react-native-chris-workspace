@@ -19,8 +19,4 @@ buildscript {
     }
 }
 
-plugins {
-    id "io.screenshotbot.plugin" version "1.22" apply false
-}
-
 apply plugin: "com.facebook.react.rootproject"

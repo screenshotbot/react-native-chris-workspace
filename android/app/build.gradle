@@ -1,8 +1,11 @@
+plugins {
+    id "io.screenshotbot.plugin" version "1.22"
+}
+
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: "com.facebook.testing.screenshot"
-apply plugin: "io.screenshotbot.plugin"
 
 /**
  * This is the configuration block to customize your React Native Android app.
