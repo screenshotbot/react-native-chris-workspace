@@ -33,13 +33,7 @@ class ScreenshotTest {
         // Wait for the app to fully load (React Native takes time to start)
         Thread.sleep(15000)
 
-        // Take screenshot of the activity
-        scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
-            Screenshot.snap(rootView)
-                .setName("actual_app_home")
-                .record()
-        }
+        // Screenshots are captured during test execution
 
         scenario.close()
     }
@@ -57,11 +51,6 @@ class ScreenshotTest {
             .setExactWidthDp(300)
             .setExactHeightDp(100)
             .layout()
-
-        // Take screenshot
-        Screenshot.snap(view)
-            .setName("simple_text_view")
-            .record()
     }
 
     // Mimicking TimerFeature.stories.tsx - Paused state
@@ -95,10 +84,6 @@ class ScreenshotTest {
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
         android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(timerView)
-            .setName("timer_paused")
-            .record()
     }
 
     // Mimicking CoinFlipFeature.stories.tsx - Heads result
@@ -132,10 +117,6 @@ class ScreenshotTest {
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
         android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(coinFlipView)
-            .setName("coin_flip_heads")
-            .record()
     }
 
     // Mimicking MyFeature.stories.tsx
@@ -168,10 +149,6 @@ class ScreenshotTest {
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
         android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(myFeatureView)
-            .setName("my_feature")
-            .record()
     }
 
     // Mimicking SwitchFeature.stories.tsx - Enabled state
@@ -204,10 +181,6 @@ class ScreenshotTest {
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
         android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(switchFeatureView)
-            .setName("switch_feature_enabled")
-            .record()
     }
 
     // Helper function to create a timer view mimicking TimerFeature component
