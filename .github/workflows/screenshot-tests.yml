@@ -65,17 +65,11 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: |
-            chmod +x android/gradlew
-            cd android
-            ./gradlew connectedDebugAndroidTest --stacktrace
+          script: cd android && ./gradlew connectedDebugAndroidTest --stacktrace
 
       - name: Pull screenshots from device
         if: always()
-        run: |
-          chmod +x android/gradlew
-          cd android
-          ./gradlew pullDebugAndroidTestScreenshots || true
+        run: cd android && ./gradlew pullDebugAndroidTestScreenshots || true
 
       - name: Upload screenshot test results
         if: always()
