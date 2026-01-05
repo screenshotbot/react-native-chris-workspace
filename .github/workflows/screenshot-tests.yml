@@ -9,7 +9,7 @@ on:
 jobs:
   screenshot-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
@@ -32,6 +32,30 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Enable Gradle caching
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> ~/.gradle/gradle.properties
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build only x86_64 for emulator tests
+        run: |
+          echo "android.defaultConfig.ndk.abiFilters 'x86_64'" >> android/gradle.properties
 
       - name: AVD cache
         uses: actions/cache@v4
