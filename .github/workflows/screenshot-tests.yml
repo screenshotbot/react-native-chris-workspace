@@ -53,9 +53,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          df -h
+
       - name: Build only x86_64 for emulator tests
         run: |
-          echo "android.defaultConfig.ndk.abiFilters 'x86_64'" >> android/gradle.properties
+          echo "reactNativeArchitectures=x86_64" >> android/gradle.properties
 
       - name: AVD cache
         uses: actions/cache@v4
