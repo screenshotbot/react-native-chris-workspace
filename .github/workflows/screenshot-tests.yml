@@ -15,6 +15,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create python symlink
+        run: sudo ln -s $(which python3) /usr/bin/python
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
