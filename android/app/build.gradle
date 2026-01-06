@@ -121,8 +121,8 @@ dependencies {
     }
 
     // Screenshot testing dependencies
-    androidTestImplementation("com.facebook.testing.screenshot:core:0.15.1")
-    androidTestImplementation("com.facebook.testing.screenshot:layout-hierarchy-common:0.15.1")
+    androidTestImplementation("com.facebook.testing.screenshot:core:0.15.0")
+    androidTestImplementation("com.facebook.testing.screenshot:layout-hierarchy-common:0.15.0")
 
     // Android test dependencies
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
