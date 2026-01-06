@@ -100,7 +100,7 @@ jobs:
 
       - name: Pull screenshots from device
         if: always()
-        run: ./android/gradlew -p android pullDebugAndroidTestScreenshots || true
+        run: ./android/gradlew --stacktrace --info -p android pullDebugAndroidTestScreenshots 
 
       - name: Upload screenshot test results
         if: always()
