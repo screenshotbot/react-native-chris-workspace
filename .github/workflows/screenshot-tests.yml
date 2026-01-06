@@ -42,6 +42,10 @@ jobs:
           echo "org.gradle.parallel=true" >> ~/.gradle/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m" >> ~/.gradle/gradle.properties
 
+      - name: Install eaase
+        run: curl https://eaase.dev/installer.sh | sh
+          
+
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
         with:
@@ -73,34 +77,10 @@ jobs:
             ~/.android/adb*
           key: avd-26
 
-      - name: Create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 26
-          target: default
-          arch: x86_64
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
-          disable-animations: true
-          disable-spellchecker: true
-          script: echo "Generated AVD snapshot for caching."
-
       - name: Run screenshot tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 26
-          target: default
-          arch: x86_64
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          disable-spellchecker: true
-          script: ./android/gradlew -p android connectedDebugAndroidTest --stacktrace
+        run: |
+          EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 26 --verbose -- ./android/gradlew -p android connectedDebugAndroidTest --stacktrace
 
-      - name: Pull screenshots from device
-        if: always()
-        run: ./android/gradlew -p android pullDebugAndroidTestScreenshots || true
 
       - name: Upload screenshot test results
         if: always()
