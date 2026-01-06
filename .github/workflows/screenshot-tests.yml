@@ -79,23 +79,8 @@ jobs:
 
       - name: Run screenshot tests
         run: |
+          # TODO: Replace this with
+          # recordDebugAndroidTestScreenshotTest to pull the
+          # screenshots. Will required the Python and Gradle fixes.
           EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 26 --verbose -- ./android/gradlew -p android connectedDebugAndroidTest --stacktrace
 
-
-      - name: Upload screenshot test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshot-test-results
-          path: |
-            android/app/build/outputs/androidTest-results/
-            android/app/screenshots/
-          retention-days: 30
-
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports
-          path: android/app/build/reports/androidTests/
-          retention-days: 30
