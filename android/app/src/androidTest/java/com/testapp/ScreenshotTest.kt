@@ -36,9 +36,24 @@ class ScreenshotTest {
         // Take screenshot of the activity
         scenario.onActivity { activity ->
             val rootView = activity.window.decorView.rootView
-            Screenshot.snap(rootView)
-                .setName("actual_app_home")
-                .record()
+
+            // Save full screenshot as single image (no tiling)
+            val bitmap = android.graphics.Bitmap.createBitmap(
+                rootView.width,
+                rootView.height,
+                android.graphics.Bitmap.Config.ARGB_8888
+            )
+            val canvas = android.graphics.Canvas(bitmap)
+            rootView.draw(canvas)
+
+            // Save to screenshots directory for easy access
+            val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+            screenshotsDir.mkdirs()
+            val file = java.io.File(screenshotsDir, "actual_app_home.png")
+            java.io.FileOutputStream(file).use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+            }
+            android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
         }
 
         scenario.close()
@@ -81,7 +96,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "Timer view dimensions: ${timerView.measuredWidth} x ${timerView.measuredHeight}")
 
-        // Also save to external storage for easier access
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             timerView.measuredWidth,
             timerView.measuredHeight,
@@ -90,15 +105,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         timerView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/timer_paused_full.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "timer_paused.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(timerView)
-            .setName("timer_paused")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Mimicking CoinFlipFeature.stories.tsx - Heads result
@@ -118,7 +132,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "CoinFlip view dimensions: ${coinFlipView.measuredWidth} x ${coinFlipView.measuredHeight}")
 
-        // Save to external storage
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             coinFlipView.measuredWidth,
             coinFlipView.measuredHeight,
@@ -127,15 +141,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         coinFlipView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/coin_flip_heads.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "coin_flip_heads.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(coinFlipView)
-            .setName("coin_flip_heads")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Mimicking MyFeature.stories.tsx
@@ -154,7 +167,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "MyFeature view dimensions: ${myFeatureView.measuredWidth} x ${myFeatureView.measuredHeight}")
 
-        // Save to external storage
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             myFeatureView.measuredWidth,
             myFeatureView.measuredHeight,
@@ -163,15 +176,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         myFeatureView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/my_feature.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "my_feature.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(myFeatureView)
-            .setName("my_feature")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Mimicking SwitchFeature.stories.tsx - Enabled state
@@ -190,7 +202,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "SwitchFeature view dimensions: ${switchFeatureView.measuredWidth} x ${switchFeatureView.measuredHeight}")
 
-        // Save to external storage
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             switchFeatureView.measuredWidth,
             switchFeatureView.measuredHeight,
@@ -199,15 +211,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         switchFeatureView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/switch_feature_enabled.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "switch_feature_enabled.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(switchFeatureView)
-            .setName("switch_feature_enabled")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Helper function to create a timer view mimicking TimerFeature component
