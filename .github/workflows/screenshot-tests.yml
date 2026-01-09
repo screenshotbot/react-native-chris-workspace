@@ -92,6 +92,23 @@ jobs:
           adb pull /sdcard/screenshots ./screenshots || echo "No screenshots found in /sdcard/screenshots"
           adb pull /data/data/com.testapp/files/screenshots ./app-screenshots || echo "No screenshots found in app storage"
 
+      - name: Download Screenshotbot CLI
+        if: always()
+        run: |
+          wget -O screenshotbot https://github.com/screenshotbot/screenshotbot-oss/releases/latest/download/screenshotbot-linux
+          chmod +x screenshotbot
+
+      - name: Upload screenshots to Screenshotbot
+        if: always()
+        run: |
+          ./screenshotbot \
+            --api-key "${{ secrets.SCREENSHOTBOT_API_KEY }}" \
+            --api-secret "${{ secrets.SCREENSHOTBOT_API_SECRET }}" \
+            --directory screenshots/ \
+            --channel android-screenshots \
+            --branch "${{ github.ref_name }}" \
+            --commit "${{ github.sha }}"
+
       - name: Upload screenshot artifacts
         if: always()
         uses: actions/upload-artifact@v4
