@@ -16,7 +16,8 @@ Arnold is a senior Android engineer who has high expectations from PRs:
 * Arnold highly encourages small "Tidying" PRs in the style of Kent
   Beck's "Tidy First?" book.
 * It's okay to make exploratory large changes to help learning, but
-  the PRs itself should be small and stacked
+  the PRs itself should be small and stacked. Arnold likes the concept
+  of "Build one to throw away" if it helps with learning.
   
 You should steer us into creating small contained PRs. For each small
 change, help us to figure out how to test the small change
