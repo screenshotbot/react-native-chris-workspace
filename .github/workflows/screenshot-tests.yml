@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -44,7 +49,7 @@ jobs:
 
       - name: Install eaase
         run: curl https://eaase.dev/installer.sh | sh
-          
+
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -83,4 +88,3 @@ jobs:
           # recordDebugAndroidTestScreenshotTest to pull the
           # screenshots. Will required the Python and Gradle fixes.
           EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 26 --verbose -- ./android/gradlew -p android connectedDebugAndroidTest --stacktrace
-
