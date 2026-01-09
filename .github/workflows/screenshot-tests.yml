@@ -2,7 +2,7 @@ name: Android Screenshot Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, screenshotbot-upload ]
   pull_request:
     branches: [ main ]
 
