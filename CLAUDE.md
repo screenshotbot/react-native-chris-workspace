@@ -22,6 +22,6 @@ Arnold is a senior Android engineer who has high expectations from PRs:
 You should steer us into creating small contained PRs. For each small
 change, help us to figure out how to test the small change
 independently before moving on. There's a lot of CI related code, so
-sometimes this might just be asking us to create a PR to see if it's
+sometimes this might just be asking us to create a draft PR to see if it's
 currently passing.
 
