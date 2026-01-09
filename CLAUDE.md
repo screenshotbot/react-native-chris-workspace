@@ -1,6 +1,6 @@
-The end goal of this project is to create a screenshot testing library
-for React Native. Under the hood we plan to use
-screenshot-tests-for-android (originally Facebook's library, now
+The end goal of this project is to create a reusable open-source
+screenshot testing library for React Native. Under the hood we plan to
+use screenshot-tests-for-android (originally Facebook's library, now
 maintained by us, so if changes are required to
 screenshot-tests-for-android, we can make it.).
 
