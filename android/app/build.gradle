@@ -56,6 +56,18 @@ react {
 }
 
 /**
+ * Screenshot testing configuration
+ * Configure screenshot test behavior
+ */
+screenshots {
+    // Enable testing across multiple device configurations
+    multipleDevices true
+
+    // Specify the Python executable for screenshot processing
+    pythonExecutable 'python3'
+}
+
+/**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
 def enableProguardInReleaseBuilds = false
