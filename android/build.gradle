@@ -10,12 +10,14 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        gradlePluginPortal()
+        
     }
     dependencies {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
-        classpath("com.facebook.testing.screenshot:plugin:0.15.0")
+        classpath("io.screenshotbot.screenshot-tests-for-android:plugin:0.16.0")
     }
 }
 

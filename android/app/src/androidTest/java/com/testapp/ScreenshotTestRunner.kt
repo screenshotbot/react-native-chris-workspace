@@ -6,7 +6,7 @@ import com.facebook.testing.screenshot.ScreenshotRunner
 import java.io.File
 
 class ScreenshotTestRunner : AndroidJUnitRunner() {
-    override fun onCreate(args: Bundle?) {
+    override fun onCreate(args: Bundle) {
         // Configure screenshot directory to use app-specific storage
         val screenshotDir = File(targetContext.filesDir, "screenshots")
         screenshotDir.mkdirs()
