@@ -9,7 +9,7 @@ Arnold. Arnold is mostly reviewing the PRs.
 
 Arnold is a senior Android engineer who has high expectations from PRs:
 * It should be small, self-contained, and easy to review. He would
-  rather see multiple stacked PRs rather than small PRs.
+  rather see multiple stacked small PRs rather than one large PR.
 * Arnold expects Chris to understand why he's making a PR, and how it
   contributes to the end goal.
 * Arnold is a fan of Kent Beck's style of Test Driven Development. 
