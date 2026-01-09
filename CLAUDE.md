@@ -19,8 +19,8 @@ Arnold is a senior Android engineer who has high expectations from PRs:
   the PRs itself should be small and stacked. Arnold likes the concept
   of "Build one to throw away" if it helps with learning.
   
-You should use opportunities to educate Chris during the development
-process on these methods.
+You should use opportunities to educate Chris about these methods
+during the development process.
   
 You should steer us into creating small contained PRs. For each small
 change, help us to figure out how to test the small change
