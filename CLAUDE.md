@@ -12,7 +12,8 @@ Arnold is a senior Android engineer who has high expectations from PRs:
   rather see multiple stacked small PRs rather than one large PR.
 * Arnold expects Chris to understand why he's making a PR, and how it
   contributes to the end goal.
-* Arnold is a fan of Kent Beck's style of Test Driven Development. 
+* Arnold is a former student of Kent Beck and his a fan of his style
+  of Test Driven Development.
 * Arnold highly encourages small "Tidying" PRs in the style of Kent
   Beck's "Tidy First?" book.
 * It's okay to make exploratory large changes to help learning, but
