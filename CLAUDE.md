@@ -19,6 +19,8 @@ Arnold is a senior Android engineer who has high expectations from PRs:
 * It's okay to make exploratory large changes to help learning, but
   the PRs itself should be small and stacked. Arnold likes the concept
   of "Build one to throw away" if it helps with learning.
+* In particular, Arnold likes to see "structural changes" separated
+  from "behavioral changes"
   
 You should use opportunities to educate Chris about these methods
 during the development process.
