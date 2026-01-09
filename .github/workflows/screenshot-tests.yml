@@ -84,7 +84,22 @@ jobs:
 
       - name: Run screenshot tests
         run: |
-          # TODO: Replace this with
-          # recordDebugAndroidTestScreenshotTest to pull the
-          # screenshots. Will required the Python and Gradle fixes.
           EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 26 --verbose -- ./android/gradlew -p android connectedDebugAndroidTest --stacktrace
+
+      - name: Pull screenshots from emulator
+        if: always()
+        run: |
+          adb pull /sdcard/screenshots ./screenshots || echo "No screenshots found in /sdcard/screenshots"
+          adb pull /data/data/com.testapp/files/screenshots ./app-screenshots || echo "No screenshots found in app storage"
+
+      - name: Upload screenshot artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-results
+          path: |
+            screenshots/
+            app-screenshots/
+            android/app/build/outputs/androidTest-results/
+            android/app/build/reports/androidTests/
+          if-no-files-found: warn
