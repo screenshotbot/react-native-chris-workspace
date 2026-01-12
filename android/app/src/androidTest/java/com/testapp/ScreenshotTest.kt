@@ -18,6 +18,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ScreenshotTest {
 
+    companion object {
+        // Time to wait for React Native to load from Metro bundler
+        private const val REACT_NATIVE_LOAD_TIMEOUT_MS = 15000L
+    }
+
     @get:Rule
     val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
         Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -59,10 +64,8 @@ class ScreenshotTest {
         scenario.close()
     }
 
-    // Test that renders a single React Native story
     @Test
     fun testMyFeatureInitialStory() {
-        // Create intent with story name
         val intent = android.content.Intent(
             androidx.test.core.app.ApplicationProvider.getApplicationContext(),
             StoryRendererActivity::class.java
@@ -70,33 +73,16 @@ class ScreenshotTest {
             putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/Initial")
         }
 
-        // Launch the StoryRenderer activity which will render MyFeature/Initial
         val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
 
-        // Wait for React Native to fully load (React Native takes time to initialize and fetch bundle)
-        Thread.sleep(15000)
+        // Wait for React Native to load from Metro bundler
+        Thread.sleep(REACT_NATIVE_LOAD_TIMEOUT_MS)
 
-        // Take screenshot of the story
         scenario.onActivity { activity ->
             val rootView = activity.window.decorView.rootView
-
-            // Save full screenshot as single image (no tiling)
-            val bitmap = android.graphics.Bitmap.createBitmap(
-                rootView.width,
-                rootView.height,
-                android.graphics.Bitmap.Config.ARGB_8888
-            )
-            val canvas = android.graphics.Canvas(bitmap)
-            rootView.draw(canvas)
-
-            // Save to screenshots directory
-            val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
-            screenshotsDir.mkdirs()
-            val file = java.io.File(screenshotsDir, "myfeature_initial_story.png")
-            java.io.FileOutputStream(file).use { out ->
-                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-            }
-            android.util.Log.d("ScreenshotTest", "Story screenshot saved to: ${file.absolutePath}")
+            Screenshot.snap(rootView)
+                .setName("myfeature_initial_story")
+                .record()
         }
 
         scenario.close()

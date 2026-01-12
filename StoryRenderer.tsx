@@ -8,16 +8,14 @@ type StoryRendererProps = {
 };
 
 /**
- * Component that renders individual stories for screenshot testing.
- * This allows Android tests to render specific story states without
- * launching the full app or Storybook UI.
+ * Renders individual Storybook stories for screenshot testing.
+ * Format: "ComponentName/StoryName" (e.g., "MyFeature/Initial")
  */
 export default function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRendererProps) {
-  // Parse the story name (format: "ComponentName/StoryName")
   const [component, story] = storyName.split('/');
 
-  // Determine initial click count based on story
-  const getInitialClickCount = () => {
+  // Determine initial state based on story name
+  const getInitialState = () => {
     if (component === 'MyFeature') {
       if (story === 'Initial') return 0;
       if (story === 'WithClicks') return 5;
@@ -26,23 +24,12 @@ export default function StoryRenderer({ storyName = 'MyFeature/Initial' }: Story
     return 0;
   };
 
-  // State must be at top level (Rules of Hooks)
-  const [clickCount, setClickCount] = useState(getInitialClickCount());
-
-  // Render the appropriate story based on the name
-  const renderStory = () => {
-    if (component === 'MyFeature') {
-      return <MyFeature clickCount={clickCount} setClickCount={setClickCount} />;
-    }
-
-    // Default fallback
-    return <MyFeature clickCount={clickCount} setClickCount={setClickCount} />;
-  };
+  const [clickCount, setClickCount] = useState(getInitialState);
 
   return (
     <ThemeProvider>
       <View style={styles.container}>
-        {renderStory()}
+        <MyFeature clickCount={clickCount} setClickCount={setClickCount} />
       </View>
     </ThemeProvider>
   );
