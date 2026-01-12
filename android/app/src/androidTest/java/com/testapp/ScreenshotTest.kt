@@ -89,6 +89,52 @@ class ScreenshotTest {
     }
 
     @Test
+    fun testMyFeatureWithClicksStory() {
+        val intent = android.content.Intent(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext(),
+            StoryRendererActivity::class.java
+        ).apply {
+            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/WithClicks")
+        }
+
+        val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
+
+        Thread.sleep(REACT_NATIVE_LOAD_TIMEOUT_MS)
+
+        scenario.onActivity { activity ->
+            val rootView = activity.window.decorView.rootView
+            Screenshot.snap(rootView)
+                .setName("myfeature_withclicks_story")
+                .record()
+        }
+
+        scenario.close()
+    }
+
+    @Test
+    fun testMyFeatureManyClicksStory() {
+        val intent = android.content.Intent(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext(),
+            StoryRendererActivity::class.java
+        ).apply {
+            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/ManyClicks")
+        }
+
+        val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
+
+        Thread.sleep(REACT_NATIVE_LOAD_TIMEOUT_MS)
+
+        scenario.onActivity { activity ->
+            val rootView = activity.window.decorView.rootView
+            Screenshot.snap(rootView)
+                .setName("myfeature_manyclicks_story")
+                .record()
+        }
+
+        scenario.close()
+    }
+
+    @Test
     fun testSimpleTextView() {
         val view = TextView(androidx.test.core.app.ApplicationProvider.getApplicationContext())
         view.text = "Hello Screenshot Test"
