@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
+    "test:screenshots": "~/eaase/eaase run --api-level 26 --verbose -- ./android/gradlew -p android connectedDebugAndroidTest --stacktrace",
     "storybook": "react-native start",
     "storybook:ios": "react-native run-ios",
     "storybook:android": "react-native run-android",
