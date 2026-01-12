@@ -19,8 +19,8 @@ import org.junit.runner.RunWith
 class ScreenshotTest {
 
     companion object {
-        // Time to wait for React Native to load from Metro bundler
-        private const val REACT_NATIVE_LOAD_TIMEOUT_MS = 15000L
+        // Time to wait for React Native to load and render
+        private const val REACT_NATIVE_LOAD_TIMEOUT_MS = 5000L
     }
 
     @get:Rule
