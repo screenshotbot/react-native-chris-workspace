@@ -59,6 +59,49 @@ class ScreenshotTest {
         scenario.close()
     }
 
+    // Test that renders a single React Native story
+    @Test
+    fun testMyFeatureInitialStory() {
+        // Create intent with story name
+        val intent = android.content.Intent(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext(),
+            StoryRendererActivity::class.java
+        ).apply {
+            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/Initial")
+        }
+
+        // Launch the StoryRenderer activity which will render MyFeature/Initial
+        val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
+
+        // Wait for React Native to fully load (React Native takes time to initialize and fetch bundle)
+        Thread.sleep(15000)
+
+        // Take screenshot of the story
+        scenario.onActivity { activity ->
+            val rootView = activity.window.decorView.rootView
+
+            // Save full screenshot as single image (no tiling)
+            val bitmap = android.graphics.Bitmap.createBitmap(
+                rootView.width,
+                rootView.height,
+                android.graphics.Bitmap.Config.ARGB_8888
+            )
+            val canvas = android.graphics.Canvas(bitmap)
+            rootView.draw(canvas)
+
+            // Save to screenshots directory
+            val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+            screenshotsDir.mkdirs()
+            val file = java.io.File(screenshotsDir, "myfeature_initial_story.png")
+            java.io.FileOutputStream(file).use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+            }
+            android.util.Log.d("ScreenshotTest", "Story screenshot saved to: ${file.absolutePath}")
+        }
+
+        scenario.close()
+    }
+
     @Test
     fun testSimpleTextView() {
         val view = TextView(androidx.test.core.app.ApplicationProvider.getApplicationContext())

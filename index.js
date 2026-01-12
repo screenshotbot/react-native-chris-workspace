@@ -17,3 +17,8 @@ if (USE_STORYBOOK) {
 }
 
 AppRegistry.registerComponent(appName, () => RootComponent);
+
+// Register a separate component for screenshot tests
+// This allows tests to render individual stories without launching the full app
+const StoryRenderer = require('./StoryRenderer').default;
+AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);
