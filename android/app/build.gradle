@@ -1,7 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-apply plugin: "com.facebook.testing.screenshot"
+apply plugin: "io.screenshotbot.screenshot-tests-for-android"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -133,8 +133,7 @@ dependencies {
     }
 
     // Screenshot testing dependencies
-    androidTestImplementation("com.facebook.testing.screenshot:core:0.15.0")
-    androidTestImplementation("com.facebook.testing.screenshot:layout-hierarchy-common:0.15.0")
+    androidTestImplementation("io.screenshotbot.screenshot-tests-for-android:core:0.16.0")
 
     // Android test dependencies
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
