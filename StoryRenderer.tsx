@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, NativeModules } from 'react-native';
 import { view } from './.rnstorybook/storybook.requires';
+
+const { StorybookRegistry } = NativeModules;
 
 type StoryRendererProps = {
   storyName?: string;
@@ -15,6 +17,28 @@ function storyNameToId(storyName: string): string {
   const titleKebab = title.toLowerCase().replace(/\s+/g, '-');
   const nameKebab = name.toLowerCase().replace(/\s+/g, '-');
   return `${titleKebab}--${nameKebab}`;
+}
+
+/**
+ * Register all available stories with the native module.
+ * This allows the Android test to discover stories automatically.
+ */
+let storiesRegistered = false;
+function registerStoriesWithNative() {
+  if (storiesRegistered || !StorybookRegistry) {
+    return;
+  }
+
+  try {
+    const stories = getAllStories();
+    if (stories.length > 0) {
+      StorybookRegistry.registerStories(stories);
+      storiesRegistered = true;
+      console.log(`Registered ${stories.length} stories with native module`);
+    }
+  } catch (e) {
+    console.warn('Failed to register stories with native module:', e);
+  }
 }
 
 /**
@@ -37,6 +61,9 @@ export default function StoryRenderer({ storyName = 'MyFeature/Initial' }: Story
         if (!view._idToPrepared || Object.keys(view._idToPrepared).length === 0) {
           await view.createPreparedStoryMapping();
         }
+
+        // Register all stories with native module for test discovery
+        registerStoriesWithNative();
 
         const preparedStory = view._idToPrepared[storyId];
 
