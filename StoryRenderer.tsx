@@ -1,38 +1,116 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import MyFeature from './MyFeature';
-import { ThemeProvider } from './Theme';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { view } from './.rnstorybook/storybook.requires';
 
 type StoryRendererProps = {
   storyName?: string;
 };
 
 /**
+ * Converts a story name like "MyFeature/Initial" to Storybook's ID format "myfeature--initial"
+ */
+function storyNameToId(storyName: string): string {
+  const [title, name] = storyName.split('/');
+  // Storybook uses kebab-case and -- separator
+  const titleKebab = title.toLowerCase().replace(/\s+/g, '-');
+  const nameKebab = name.toLowerCase().replace(/\s+/g, '-');
+  return `${titleKebab}--${nameKebab}`;
+}
+
+/**
  * Renders individual Storybook stories for screenshot testing.
+ * Uses Storybook's actual rendering pipeline instead of manual component mapping.
+ *
  * Format: "ComponentName/StoryName" (e.g., "MyFeature/Initial")
  */
 export default function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRendererProps) {
-  const [component, story] = storyName.split('/');
+  const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Determine initial state based on story name
-  const getInitialState = () => {
-    if (component === 'MyFeature') {
-      if (story === 'Initial') return 0;
-      if (story === 'WithClicks') return 5;
-      if (story === 'ManyClicks') return 42;
+  useEffect(() => {
+    async function renderStory() {
+      try {
+        const storyId = storyNameToId(storyName);
+
+        // Wait for Storybook to be ready and prepare story mappings
+        if (!view._idToPrepared || Object.keys(view._idToPrepared).length === 0) {
+          await view.createPreparedStoryMapping();
+        }
+
+        const preparedStory = view._idToPrepared[storyId];
+
+        if (!preparedStory) {
+          // List available stories for debugging
+          const availableStories = Object.keys(view._idToPrepared || {}).join(', ');
+          setError(`Story "${storyId}" not found. Available: ${availableStories}`);
+          setLoading(false);
+          return;
+        }
+
+        // Render the story using Storybook's prepared story
+        const { unboundStoryFn, storyContext } = preparedStory;
+        const rendered = unboundStoryFn(storyContext);
+
+        setStoryContent(rendered);
+        setLoading(false);
+      } catch (e) {
+        setError(`Error rendering story: ${e}`);
+        setLoading(false);
+      }
     }
-    return 0;
-  };
 
-  const [clickCount, setClickCount] = useState(getInitialState);
+    renderStory();
+  }, [storyName]);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading story...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.error}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
-    <ThemeProvider>
-      <View style={styles.container}>
-        <MyFeature clickCount={clickCount} setClickCount={setClickCount} />
-      </View>
-    </ThemeProvider>
+    <View style={styles.container}>
+      {storyContent}
+    </View>
   );
+}
+
+/**
+ * Get all available story IDs from Storybook's registry.
+ * Returns array of story IDs like ["myfeature--initial", "myfeature--withclicks", ...]
+ */
+export function getAllStoryIds(): string[] {
+  if (!view._storyIndex?.entries) {
+    return [];
+  }
+  return Object.keys(view._storyIndex.entries);
+}
+
+/**
+ * Get all stories with their metadata.
+ * Useful for generating test cases.
+ */
+export function getAllStories(): Array<{ id: string; title: string; name: string }> {
+  if (!view._storyIndex?.entries) {
+    return [];
+  }
+
+  return Object.entries(view._storyIndex.entries).map(([id, entry]: [string, any]) => ({
+    id,
+    title: entry.title,
+    name: entry.name,
+  }));
 }
 
 const styles = StyleSheet.create({
@@ -41,5 +119,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
+  },
+  error: {
+    color: 'red',
+    textAlign: 'center',
+    padding: 20,
   },
 });
