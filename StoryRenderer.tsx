@@ -75,9 +75,13 @@ export default function StoryRenderer({ storyName = 'MyFeature/Initial' }: Story
           return;
         }
 
+        // Get the full story context from Storybook's preview
+        const storyContext = view._preview.getStoryContext(preparedStory);
+
         // Render the story using Storybook's prepared story
-        const { unboundStoryFn, storyContext } = preparedStory;
-        const rendered = unboundStoryFn(storyContext);
+        // The unboundStoryFn is a React component that receives context as props
+        const { unboundStoryFn: StoryComponent } = preparedStory;
+        const rendered = <StoryComponent {...storyContext} />;
 
         setStoryContent(rendered);
         setLoading(false);

@@ -1,16 +1,19 @@
 package com.testapp
 
 import android.Manifest
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.util.Log
+import android.view.View
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
-import com.facebook.testing.screenshot.Screenshot
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Screenshot test that automatically discovers and tests all Storybook stories.
@@ -29,6 +32,7 @@ class StoryScreenshotTest {
     companion object {
         private const val TAG = "StoryScreenshotTest"
         private const val REACT_NATIVE_LOAD_TIMEOUT_MS = 5000L
+        private const val SCREENSHOTS_DIR = "/sdcard/screenshots/com.testapp.test/stories"
     }
 
     @get:Rule
@@ -105,13 +109,41 @@ class StoryScreenshotTest {
             // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            Screenshot.snap(rootView)
-                .setName(screenshotName)
-                .record()
+            // Capture full screenshot without tiling
+            saveFullScreenshot(rootView, screenshotName)
 
             Log.d(TAG, "Screenshot captured: $screenshotName")
         }
 
         scenario.close()
+    }
+
+    /**
+     * Saves a full screenshot of the view as a single PNG file (no tiling).
+     */
+    private fun saveFullScreenshot(view: View, name: String) {
+        // Create bitmap from view
+        val bitmap = Bitmap.createBitmap(
+            view.width,
+            view.height,
+            Bitmap.Config.ARGB_8888
+        )
+        val canvas = Canvas(bitmap)
+        view.draw(canvas)
+
+        // Ensure output directory exists
+        val screenshotsDir = File(SCREENSHOTS_DIR)
+        screenshotsDir.mkdirs()
+
+        // Save as PNG
+        val file = File(screenshotsDir, "$name.png")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+
+        Log.d(TAG, "Full screenshot saved to: ${file.absolutePath}")
+
+        // Clean up bitmap
+        bitmap.recycle()
     }
 }
