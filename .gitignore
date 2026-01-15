@@ -80,3 +80,11 @@ android/app/screenshots/failures/
 
 *storybook.log
 storybook-static
+
+# Claude Code temp files
+tmpclaude-*
+metro.pid
+nul
+
+# Local test screenshots (not baselines)
+/screenshots/
