@@ -65,7 +65,7 @@ screenshots {
     multipleDevices true
 
     // Specify the Python executable for screenshot processing
-    pythonExecutable 'python3'
+    pythonExecutable 'py'
 }
 
 /**
