@@ -63,9 +63,10 @@ react {
 screenshots {
     // Enable testing across multiple device configurations
     multipleDevices true
-
-    // Specify the Python executable for screenshot processing
-    pythonExecutable 'py'
+    // Directory for baseline screenshots
+    recordDir 'screenshots'
+    // Directory for failed screenshot diffs (required in 0.18.0 to avoid NPE)
+    failureDir 'screenshots/failures'
 }
 
 /**
@@ -134,7 +135,7 @@ dependencies {
     }
 
     // Screenshot testing dependencies
-    androidTestImplementation("io.screenshotbot.screenshot-tests-for-android:core:0.16.0")
+    androidTestImplementation("io.screenshotbot.screenshot-tests-for-android:core:0.18.0")
 
     // Android test dependencies
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
