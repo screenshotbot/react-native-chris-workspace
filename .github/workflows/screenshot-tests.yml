@@ -79,8 +79,7 @@ jobs:
 
       - name: Run screenshot tests
         run: |
-          # TODO: Replace this with
-          # recordDebugAndroidTestScreenshotTest to pull the
-          # screenshots. Will required the Python and Gradle fixes.
+          # Prebuild the binaries before requesting the emulator
+          ./android/gradlew -p android :app:assembleDebugAndroidTest
           EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 33 --verbose -- ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotbotCI
 
