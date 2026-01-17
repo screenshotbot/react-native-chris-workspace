@@ -82,5 +82,5 @@ jobs:
           # TODO: Replace this with
           # recordDebugAndroidTestScreenshotTest to pull the
           # screenshots. Will required the Python and Gradle fixes.
-          EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 33 --verbose -- ./android/gradlew :app:recordAndVerifyDebugScreenshotbotCI
+          EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 33 --verbose -- ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotbotCI
 
