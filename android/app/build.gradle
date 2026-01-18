@@ -136,3 +136,7 @@ dependencies {
     androidTestImplementation("androidx.test:rules:1.5.0")
     androidTestImplementation("androidx.test:core:1.5.0")
 }
+
+screenshotbot {
+    mainBranch "main"
+}
