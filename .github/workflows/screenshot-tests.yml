@@ -83,8 +83,14 @@ jobs:
           key: avd-26
 
       - name: Run screenshot tests
+        env:
+          EAASE_API_TOKEN: ${{ secrets.EAASE_API_TOKEN }}
+          SCREENSHOTBOT_API_KEY: ${{ secrets.SCREENSHOTBOT_API_KEY }}
+          SCREENSHOTBOT_API_SECRET: ${{ secrets.SCREENSHOTBOT_API_SECRET }}
         run: |
-          EAASE_API_TOKEN=${{ secrets.EAASE_API_TOKEN }} ~/eaase/eaase run --api-level 26 --verbose -- ./android/gradlew -p android connectedDebugAndroidTest --stacktrace
+          # Prebuild the binaries before requesting the emulator
+          ./android/gradlew -p android :app:assembleDebugAndroidTest
+          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotbotCI
 
       - name: Pull screenshots from emulator
         if: always()
