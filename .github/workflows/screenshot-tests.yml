@@ -44,7 +44,7 @@ jobs:
 
       - name: Install eaase
         run: curl https://eaase.dev/installer.sh | sh
-
+          
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
