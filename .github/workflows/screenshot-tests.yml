@@ -30,11 +30,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -92,20 +87,3 @@ jobs:
           ./android/gradlew -p android :app:assembleDebugAndroidTest
           ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotbotCI
 
-      - name: Pull screenshots from emulator
-        if: always()
-        run: |
-          adb pull /sdcard/screenshots ./screenshots || echo "No screenshots found in /sdcard/screenshots"
-          adb pull /data/data/com.testapp/files/screenshots ./app-screenshots || echo "No screenshots found in app storage"
-
-      - name: Upload screenshot artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshot-results
-          path: |
-            screenshots/
-            app-screenshots/
-            android/app/build/outputs/androidTest-results/**/*.xml
-            android/app/build/reports/androidTests/
-          if-no-files-found: warn
