@@ -12,11 +12,8 @@ class MainApplication : Application(), ReactApplication {
   override val reactHost: ReactHost by lazy {
     getDefaultReactHost(
       context = applicationContext,
-      packageList =
-        PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
-          add(ScreenshotTestPackage())
-        },
+      packageList = PackageList(this).packages,
+      // rn-storybook-auto-screenshots is autolinked
     )
   }
 

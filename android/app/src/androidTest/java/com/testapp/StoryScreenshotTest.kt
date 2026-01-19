@@ -6,6 +6,8 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.rnstorybookautoscreenshots.StorybookRegistry
+import com.rnstorybookautoscreenshots.StoryInfo
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
