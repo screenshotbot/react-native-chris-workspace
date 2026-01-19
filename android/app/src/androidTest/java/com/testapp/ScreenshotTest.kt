@@ -53,7 +53,7 @@ class ScreenshotTest {
             rootView.draw(canvas)
 
             // Save to screenshots directory for easy access
-            val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+            val screenshotsDir = java.io.File(activity.getExternalFilesDir("screenshots"), "full")
             screenshotsDir.mkdirs()
             val file = java.io.File(screenshotsDir, "actual_app_home.png")
             java.io.FileOutputStream(file).use { out ->
@@ -182,7 +182,7 @@ class ScreenshotTest {
         timerView.draw(canvas)
 
         // Save to screenshots directory for easy access
-        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
         screenshotsDir.mkdirs()
         val file = java.io.File(screenshotsDir, "timer_paused.png")
         java.io.FileOutputStream(file).use { out ->
@@ -218,7 +218,7 @@ class ScreenshotTest {
         coinFlipView.draw(canvas)
 
         // Save to screenshots directory for easy access
-        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
         screenshotsDir.mkdirs()
         val file = java.io.File(screenshotsDir, "coin_flip_heads.png")
         java.io.FileOutputStream(file).use { out ->
@@ -253,7 +253,7 @@ class ScreenshotTest {
         myFeatureView.draw(canvas)
 
         // Save to screenshots directory for easy access
-        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
         screenshotsDir.mkdirs()
         val file = java.io.File(screenshotsDir, "my_feature.png")
         java.io.FileOutputStream(file).use { out ->
@@ -288,7 +288,7 @@ class ScreenshotTest {
         switchFeatureView.draw(canvas)
 
         // Save to screenshots directory for easy access
-        val screenshotsDir = java.io.File("/sdcard/screenshots/com.testapp.test/full")
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
         screenshotsDir.mkdirs()
         val file = java.io.File(screenshotsDir, "switch_feature_enabled.png")
         java.io.FileOutputStream(file).use { out ->

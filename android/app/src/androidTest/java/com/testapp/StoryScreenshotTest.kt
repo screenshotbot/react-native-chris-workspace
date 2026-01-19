@@ -46,14 +46,16 @@ class StoryScreenshotTest {
      */
     @Test
     fun screenshotAllStories() {
-        val manifestFile = File("/sdcard/screenshots/com.testapp.test/${StorybookRegistry.STORIES_FILE_NAME}")
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val externalDir = context.getExternalFilesDir("screenshots")
+        val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
         assertTrue(
-            "Stories manifest not found. Run StoryManifestBootstrapTest first to generate it.",
+            "Stories manifest not found at ${manifestFile.absolutePath}. Run StoryManifestBootstrapTest first to generate it.",
             manifestFile.exists()
         )
 
-        val stories = StorybookRegistry.getStoriesFromFile(manifestFile.parentFile!!)
+        val stories = StorybookRegistry.getStoriesFromFile(externalDir!!)
         Log.d(TAG, "Found ${stories.size} stories to screenshot")
 
         assertTrue("No stories found in manifest", stories.isNotEmpty())

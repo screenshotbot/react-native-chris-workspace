@@ -53,7 +53,7 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
 
     /**
      * Called from JS to register the list of available stories.
-     * Writes to both internal storage and sdcard for test access.
+     * Writes to external files directory for test access.
      */
     @ReactMethod
     fun registerStories(storiesArray: ReadableArray) {
@@ -81,13 +81,14 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
             internalFile.writeText(jsonString)
             Log.d(TAG, "Wrote ${stories.length()} stories to ${internalFile.absolutePath}")
 
-            // Also write to sdcard for easy test access
-            val packageName = reactApplicationContext.packageName
-            val sdcardDir = File("/sdcard/screenshots/${packageName}.test")
-            sdcardDir.mkdirs()
-            val sdcardFile = File(sdcardDir, STORIES_FILE_NAME)
-            sdcardFile.writeText(jsonString)
-            Log.d(TAG, "Wrote ${stories.length()} stories to ${sdcardFile.absolutePath}")
+            // Write to external files dir (works on all Android versions without permissions)
+            val externalDir = reactApplicationContext.getExternalFilesDir("screenshots")
+            if (externalDir != null) {
+                externalDir.mkdirs()
+                val externalFile = File(externalDir, STORIES_FILE_NAME)
+                externalFile.writeText(jsonString)
+                Log.d(TAG, "Wrote ${stories.length()} stories to ${externalFile.absolutePath}")
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error registering stories", e)

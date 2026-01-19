@@ -57,15 +57,17 @@ class StoryManifestBootstrapTest {
 
         scenario.close()
 
-        // Verify manifest was created
-        val manifestFile = File("/sdcard/screenshots/com.testapp.test/${StorybookRegistry.STORIES_FILE_NAME}")
+        // Verify manifest was created in external files directory
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val externalDir = context.getExternalFilesDir("screenshots")
+        val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
         assertTrue(
             "Story manifest should be created at ${manifestFile.absolutePath}",
             manifestFile.exists()
         )
 
-        val stories = StorybookRegistry.getStoriesFromFile(manifestFile.parentFile!!)
+        val stories = StorybookRegistry.getStoriesFromFile(externalDir!!)
         Log.d(TAG, "Generated manifest with ${stories.size} stories:")
         stories.forEach { story ->
             Log.d(TAG, "  - ${story.title}/${story.name} (${story.id})")
