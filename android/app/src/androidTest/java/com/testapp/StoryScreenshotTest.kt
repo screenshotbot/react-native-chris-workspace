@@ -6,6 +6,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.rnstorybookautoscreenshots.BaseStoryRendererActivity
 import com.rnstorybookautoscreenshots.StorybookRegistry
 import com.rnstorybookautoscreenshots.StoryInfo
 import org.junit.Assert.assertTrue
@@ -93,7 +94,7 @@ class StoryScreenshotTest {
             androidx.test.core.app.ApplicationProvider.getApplicationContext(),
             StoryRendererActivity::class.java
         ).apply {
-            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, storyName)
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, storyName)
         }
 
         val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)

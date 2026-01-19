@@ -10,6 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import com.rnstorybookautoscreenshots.BaseStoryRendererActivity
 import com.rnstorybookautoscreenshots.StorybookRegistry
 
 /**
@@ -46,7 +47,7 @@ class StoryManifestBootstrapTest {
             androidx.test.core.app.ApplicationProvider.getApplicationContext(),
             StoryRendererActivity::class.java
         ).apply {
-            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/Initial")
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/Initial")
         }
 
         val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)

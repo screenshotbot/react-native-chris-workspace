@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
 import com.facebook.testing.screenshot.ViewHelpers
+import com.rnstorybookautoscreenshots.BaseStoryRendererActivity
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,7 +71,7 @@ class ScreenshotTest {
             androidx.test.core.app.ApplicationProvider.getApplicationContext(),
             StoryRendererActivity::class.java
         ).apply {
-            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/Initial")
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/Initial")
         }
 
         val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
@@ -94,7 +95,7 @@ class ScreenshotTest {
             androidx.test.core.app.ApplicationProvider.getApplicationContext(),
             StoryRendererActivity::class.java
         ).apply {
-            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/WithClicks")
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/WithClicks")
         }
 
         val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
@@ -117,7 +118,7 @@ class ScreenshotTest {
             androidx.test.core.app.ApplicationProvider.getApplicationContext(),
             StoryRendererActivity::class.java
         ).apply {
-            putExtra(StoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/ManyClicks")
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/ManyClicks")
         }
 
         val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
