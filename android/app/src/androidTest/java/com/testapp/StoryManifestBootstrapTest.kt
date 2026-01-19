@@ -10,6 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import com.rnstorybookautoscreenshots.StorybookRegistry
 
 /**
  * Bootstrap test that generates the story manifest.
