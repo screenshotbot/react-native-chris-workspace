@@ -46,15 +46,34 @@ import com.rnstorybookautoscreenshots.BaseStoryRendererActivity
 class StoryRendererActivity : BaseStoryRendererActivity()
 ```
 
-Register it in your AndroidManifest.xml:
+Register it in your AndroidManifest.xml and add storage permissions:
 
 ```xml
-<activity
-    android:name=".StoryRendererActivity"
-    android:exported="false" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for screenshot tests -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <application ...>
+        <activity
+            android:name=".StoryRendererActivity"
+            android:exported="false" />
+    </application>
+</manifest>
 ```
 
-### 4. Add test dependencies
+### 4. Bundle JS in debug builds
+
+Screenshot tests require the JS bundle to be embedded in the APK. Add this to your `android/app/build.gradle`:
+
+```gradle
+react {
+    // Bundle JS in debug for screenshot tests
+    debuggableVariants = []
+}
+```
+
+### 5. Add test dependencies
 
 Add these to your app's `android/app/build.gradle`:
 
@@ -69,7 +88,7 @@ dependencies {
 }
 ```
 
-### 5. Create test runner
+### 6. Create test runner
 
 ```kotlin
 // android/app/src/androidTest/java/com/yourapp/ScreenshotTestRunner.kt
@@ -90,7 +109,7 @@ android {
 }
 ```
 
-### 6. Create screenshot tests
+### 7. Create screenshot tests
 
 Create a bootstrap test that generates the story manifest:
 
