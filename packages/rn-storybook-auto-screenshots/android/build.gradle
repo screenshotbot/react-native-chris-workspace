@@ -49,10 +49,11 @@ dependencies {
     implementation "com.facebook.react:react-android:+"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${safeExtGet('kotlinVersion', '1.9.23')}"
 
-    // Test infrastructure dependencies - using api so they're available to apps extending base classes
-    api "androidx.test.ext:junit:1.1.5"
-    api "androidx.test:runner:1.5.2"
-    api "androidx.test:rules:1.5.0"
-    api "androidx.test:core:1.5.0"
-    api "io.screenshotbot.screenshot-tests-for-android:core:1.0.1"
+    // Test infrastructure dependencies - compileOnly so they're not bundled into consuming apps
+    // Apps using the base test classes must add these to their own androidTestImplementation
+    compileOnly "androidx.test.ext:junit:1.1.5"
+    compileOnly "androidx.test:runner:1.5.2"
+    compileOnly "androidx.test:rules:1.5.0"
+    compileOnly "androidx.test:core:1.5.0"
+    compileOnly "io.screenshotbot.screenshot-tests-for-android:core:1.0.1"
 }
