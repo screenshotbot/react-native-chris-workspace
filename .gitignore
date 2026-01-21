@@ -80,3 +80,6 @@ android/app/screenshots/failures/
 
 *storybook.log
 storybook-static
+
+# Local screenshot test outputs
+screenshots/
