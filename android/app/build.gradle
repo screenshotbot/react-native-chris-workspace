@@ -27,7 +27,8 @@ react {
     //   The list of variants to that are debuggable. For those we're going to
     //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
     //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
-    // debuggableVariants = ["liteDebug", "prodDebug"]
+    // Bundle JS in debug for screenshot tests by setting empty list
+    debuggableVariants = []
 
     /* Bundling */
     //   A list containing the node command and its flags. Default is just 'node'.
@@ -58,6 +59,19 @@ react {
 
     /* Autolinking */
     autolinkLibrariesWithApp()
+}
+
+/**
+ * Screenshot testing configuration
+ * Configure screenshot test behavior
+ */
+screenshots {
+    // Enable testing across multiple device configurations
+    multipleDevices true
+    // Directory for baseline screenshots
+    recordDir 'screenshots'
+    // Directory for failed screenshot diffs (required in 0.18.0 to avoid NPE)
+    failureDir 'screenshots/failures'
 }
 
 /**
@@ -128,7 +142,7 @@ dependencies {
     }
 
     // Screenshot testing dependencies
-    androidTestImplementation("io.screenshotbot.screenshot-tests-for-android:core:1.0.0")
+    androidTestImplementation("io.screenshotbot.screenshot-tests-for-android:core:1.0.1")
 
     // Android test dependencies
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

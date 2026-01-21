@@ -11,12 +11,18 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
 import com.facebook.testing.screenshot.ViewHelpers
+import com.rnstorybookautoscreenshots.BaseStoryRendererActivity
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ScreenshotTest {
+
+    companion object {
+        // Time to wait for React Native to load and render
+        private const val REACT_NATIVE_LOAD_TIMEOUT_MS = 5000L
+    }
 
     @get:Rule
     val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
@@ -36,8 +42,93 @@ class ScreenshotTest {
         // Take screenshot of the activity
         scenario.onActivity { activity ->
             val rootView = activity.window.decorView.rootView
+
+            // Save full screenshot as single image (no tiling)
+            val bitmap = android.graphics.Bitmap.createBitmap(
+                rootView.width,
+                rootView.height,
+                android.graphics.Bitmap.Config.ARGB_8888
+            )
+            val canvas = android.graphics.Canvas(bitmap)
+            rootView.draw(canvas)
+
+            // Save to screenshots directory for easy access
+            val screenshotsDir = java.io.File(activity.getExternalFilesDir("screenshots"), "full")
+            screenshotsDir.mkdirs()
+            val file = java.io.File(screenshotsDir, "actual_app_home.png")
+            java.io.FileOutputStream(file).use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+            }
+            android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
+        }
+
+        scenario.close()
+    }
+
+    @Test
+    fun testMyFeatureInitialStory() {
+        val intent = android.content.Intent(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext(),
+            StoryRendererActivity::class.java
+        ).apply {
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/Initial")
+        }
+
+        val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
+
+        // Wait for React Native to load from Metro bundler
+        Thread.sleep(REACT_NATIVE_LOAD_TIMEOUT_MS)
+
+        scenario.onActivity { activity ->
+            val rootView = activity.window.decorView.rootView
             Screenshot.snap(rootView)
-                .setName("actual_app_home")
+                .setName("myfeature_initial_story")
+                .record()
+        }
+
+        scenario.close()
+    }
+
+    @Test
+    fun testMyFeatureWithClicksStory() {
+        val intent = android.content.Intent(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext(),
+            StoryRendererActivity::class.java
+        ).apply {
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/WithClicks")
+        }
+
+        val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
+
+        Thread.sleep(REACT_NATIVE_LOAD_TIMEOUT_MS)
+
+        scenario.onActivity { activity ->
+            val rootView = activity.window.decorView.rootView
+            Screenshot.snap(rootView)
+                .setName("myfeature_withclicks_story")
+                .record()
+        }
+
+        scenario.close()
+    }
+
+    @Test
+    fun testMyFeatureManyClicksStory() {
+        val intent = android.content.Intent(
+            androidx.test.core.app.ApplicationProvider.getApplicationContext(),
+            StoryRendererActivity::class.java
+        ).apply {
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, "MyFeature/ManyClicks")
+        }
+
+        val scenario = ActivityScenario.launch<StoryRendererActivity>(intent)
+
+        Thread.sleep(REACT_NATIVE_LOAD_TIMEOUT_MS)
+
+        scenario.onActivity { activity ->
+            val rootView = activity.window.decorView.rootView
+            Screenshot.snap(rootView)
+                .setName("myfeature_manyclicks_story")
                 .record()
         }
 
@@ -81,7 +172,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "Timer view dimensions: ${timerView.measuredWidth} x ${timerView.measuredHeight}")
 
-        // Also save to external storage for easier access
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             timerView.measuredWidth,
             timerView.measuredHeight,
@@ -90,15 +181,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         timerView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/timer_paused_full.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "timer_paused.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(timerView)
-            .setName("timer_paused")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Mimicking CoinFlipFeature.stories.tsx - Heads result
@@ -118,7 +208,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "CoinFlip view dimensions: ${coinFlipView.measuredWidth} x ${coinFlipView.measuredHeight}")
 
-        // Save to external storage
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             coinFlipView.measuredWidth,
             coinFlipView.measuredHeight,
@@ -127,15 +217,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         coinFlipView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/coin_flip_heads.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "coin_flip_heads.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(coinFlipView)
-            .setName("coin_flip_heads")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Mimicking MyFeature.stories.tsx
@@ -154,7 +243,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "MyFeature view dimensions: ${myFeatureView.measuredWidth} x ${myFeatureView.measuredHeight}")
 
-        // Save to external storage
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             myFeatureView.measuredWidth,
             myFeatureView.measuredHeight,
@@ -163,15 +252,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         myFeatureView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/my_feature.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "my_feature.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(myFeatureView)
-            .setName("my_feature")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Mimicking SwitchFeature.stories.tsx - Enabled state
@@ -190,7 +278,7 @@ class ScreenshotTest {
         // Log the dimensions for verification
         android.util.Log.d("ScreenshotTest", "SwitchFeature view dimensions: ${switchFeatureView.measuredWidth} x ${switchFeatureView.measuredHeight}")
 
-        // Save to external storage
+        // Save full screenshot as single image (no tiling)
         val bitmap = android.graphics.Bitmap.createBitmap(
             switchFeatureView.measuredWidth,
             switchFeatureView.measuredHeight,
@@ -199,15 +287,14 @@ class ScreenshotTest {
         val canvas = android.graphics.Canvas(bitmap)
         switchFeatureView.draw(canvas)
 
-        val file = java.io.File("/sdcard/Download/switch_feature_enabled.png")
+        // Save to screenshots directory for easy access
+        val screenshotsDir = java.io.File(androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>().getExternalFilesDir("screenshots"), "full")
+        screenshotsDir.mkdirs()
+        val file = java.io.File(screenshotsDir, "switch_feature_enabled.png")
         java.io.FileOutputStream(file).use { out ->
             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
         }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
-        Screenshot.snap(switchFeatureView)
-            .setName("switch_feature_enabled")
-            .record()
+        android.util.Log.d("ScreenshotTest", "Full screenshot saved to: ${file.absolutePath}")
     }
 
     // Helper function to create a timer view mimicking TimerFeature component

@@ -26,5 +26,12 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <!-- Activity for rendering individual stories in screenshot tests -->
+      <activity
+        android:name=".StoryRendererActivity"
+        android:label="StoryRenderer"
+        android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+        android:windowSoftInputMode="adjustResize"
+        android:exported="false" />
     </application>
 </manifest>
