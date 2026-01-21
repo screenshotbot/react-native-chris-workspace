@@ -85,5 +85,5 @@ jobs:
         run: |
           # Prebuild the binaries before requesting the emulator
           ./android/gradlew -p android :app:assembleDebugAndroidTest
-          ~/eaase/eaase run --api-level 33 -- ./android/gradlew -p android connectedDebugAndroidTest
+          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotCI
 
