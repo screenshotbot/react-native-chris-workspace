@@ -69,6 +69,8 @@ yarn-error.log
 # Screenshot test outputs
 android/app/screenshots-default/
 android/app/screenshots/failures/
+screenshots/
+*.png
 
 # Yarn
 .yarn/*
