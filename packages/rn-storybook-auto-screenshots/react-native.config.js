@@ -1,9 +1,12 @@
 module.exports = {
-  // No native code in this package yet
   dependency: {
     platforms: {
-      android: null,
-      ios: null,
+      android: {
+        sourceDir: './android',
+        packageImportPath: 'import com.rnstorybookautoscreenshots.RNStorybookAutoScreenshotsPackage;',
+        packageInstance: 'new RNStorybookAutoScreenshotsPackage()',
+      },
+      ios: null, // iOS not supported yet
     },
   },
 };
