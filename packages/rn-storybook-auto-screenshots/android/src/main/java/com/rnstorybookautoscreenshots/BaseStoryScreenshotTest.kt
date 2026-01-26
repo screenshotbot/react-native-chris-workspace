@@ -57,11 +57,42 @@ abstract class BaseStoryScreenshotTest {
     open fun getLoadTimeoutMs(): Long = DEFAULT_LOAD_TIMEOUT_MS
 
     /**
+     * Override to provide a custom story filter.
+     * Use StoryFilters helper and combinators to build complex filters.
+     *
+     * Examples:
+     * ```
+     * // Only MyFeature stories
+     * override fun getStoryFilter() = StoryFilters.title("MyFeature")
+     *
+     * // Multiple titles
+     * override fun getStoryFilter() =
+     *     StoryFilters.title("MyFeature") or StoryFilters.title("Button")
+     *
+     * // Exclude WIP stories
+     * override fun getStoryFilter() =
+     *     StoryFilters.all() and StoryFilters.nameContains("WIP").not()
+     *
+     * // Custom lambda
+     * override fun getStoryFilter() = StoryFilter { story ->
+     *     story.title == "MyFeature" && story.name != "Experimental"
+     * }
+     * ```
+     */
+    open fun getStoryFilter(): StoryFilter = StoryFilters.all()
+
+    /**
      * Override to filter which stories should be screenshotted.
      * Return true to include the story, false to skip it.
-     * Default includes all stories.
+     * Default implementation delegates to getStoryFilter().
      */
-    open fun shouldScreenshotStory(storyInfo: StoryInfo): Boolean = true
+    open fun shouldScreenshotStory(storyInfo: StoryInfo): Boolean {
+        val included = getStoryFilter().shouldInclude(storyInfo)
+        if (!included) {
+            Log.d(TAG, "Skipping '${storyInfo.toStoryName()}': excluded by filter")
+        }
+        return included
+    }
 
     /**
      * Screenshots all stories found in the manifest.
