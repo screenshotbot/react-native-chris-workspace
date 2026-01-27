@@ -1,0 +1,3 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Library manifest - permissions will be merged from app -->
+</manifest>

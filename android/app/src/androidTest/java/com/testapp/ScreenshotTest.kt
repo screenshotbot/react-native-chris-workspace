@@ -78,24 +78,6 @@ class ScreenshotTest {
         timerView.measure(widthSpec, heightSpec)
         timerView.layout(0, 0, timerView.measuredWidth, timerView.measuredHeight)
 
-        // Log the dimensions for verification
-        android.util.Log.d("ScreenshotTest", "Timer view dimensions: ${timerView.measuredWidth} x ${timerView.measuredHeight}")
-
-        // Also save to external storage for easier access
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            timerView.measuredWidth,
-            timerView.measuredHeight,
-            android.graphics.Bitmap.Config.ARGB_8888
-        )
-        val canvas = android.graphics.Canvas(bitmap)
-        timerView.draw(canvas)
-
-        val file = java.io.File("/sdcard/Download/timer_paused_full.png")
-        java.io.FileOutputStream(file).use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-        }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
         Screenshot.snap(timerView)
             .setName("timer_paused")
             .record()
@@ -115,24 +97,6 @@ class ScreenshotTest {
         coinFlipView.measure(widthSpec, heightSpec)
         coinFlipView.layout(0, 0, coinFlipView.measuredWidth, coinFlipView.measuredHeight)
 
-        // Log the dimensions for verification
-        android.util.Log.d("ScreenshotTest", "CoinFlip view dimensions: ${coinFlipView.measuredWidth} x ${coinFlipView.measuredHeight}")
-
-        // Save to external storage
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            coinFlipView.measuredWidth,
-            coinFlipView.measuredHeight,
-            android.graphics.Bitmap.Config.ARGB_8888
-        )
-        val canvas = android.graphics.Canvas(bitmap)
-        coinFlipView.draw(canvas)
-
-        val file = java.io.File("/sdcard/Download/coin_flip_heads.png")
-        java.io.FileOutputStream(file).use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-        }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
         Screenshot.snap(coinFlipView)
             .setName("coin_flip_heads")
             .record()
@@ -151,24 +115,6 @@ class ScreenshotTest {
         myFeatureView.measure(widthSpec, heightSpec)
         myFeatureView.layout(0, 0, myFeatureView.measuredWidth, myFeatureView.measuredHeight)
 
-        // Log the dimensions for verification
-        android.util.Log.d("ScreenshotTest", "MyFeature view dimensions: ${myFeatureView.measuredWidth} x ${myFeatureView.measuredHeight}")
-
-        // Save to external storage
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            myFeatureView.measuredWidth,
-            myFeatureView.measuredHeight,
-            android.graphics.Bitmap.Config.ARGB_8888
-        )
-        val canvas = android.graphics.Canvas(bitmap)
-        myFeatureView.draw(canvas)
-
-        val file = java.io.File("/sdcard/Download/my_feature.png")
-        java.io.FileOutputStream(file).use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-        }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
-
         Screenshot.snap(myFeatureView)
             .setName("my_feature")
             .record()
@@ -186,24 +132,6 @@ class ScreenshotTest {
         val heightSpec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
         switchFeatureView.measure(widthSpec, heightSpec)
         switchFeatureView.layout(0, 0, switchFeatureView.measuredWidth, switchFeatureView.measuredHeight)
-
-        // Log the dimensions for verification
-        android.util.Log.d("ScreenshotTest", "SwitchFeature view dimensions: ${switchFeatureView.measuredWidth} x ${switchFeatureView.measuredHeight}")
-
-        // Save to external storage
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            switchFeatureView.measuredWidth,
-            switchFeatureView.measuredHeight,
-            android.graphics.Bitmap.Config.ARGB_8888
-        )
-        val canvas = android.graphics.Canvas(bitmap)
-        switchFeatureView.draw(canvas)
-
-        val file = java.io.File("/sdcard/Download/switch_feature_enabled.png")
-        java.io.FileOutputStream(file).use { out ->
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-        }
-        android.util.Log.d("ScreenshotTest", "Screenshot saved to: ${file.absolutePath}")
 
         Screenshot.snap(switchFeatureView)
             .setName("switch_feature_enabled")
