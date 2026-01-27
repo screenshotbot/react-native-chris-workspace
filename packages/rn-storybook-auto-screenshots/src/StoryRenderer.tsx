@@ -17,6 +17,25 @@ let storybookView: any = null;
  */
 export function configure(view: any) {
   storybookView = view;
+  console.log('[StoryRenderer] configure() called with view');
+
+  // Try to register stories after a delay, as a fallback
+  // This helps ensure stories are registered even if the component rendering fails
+  setTimeout(async () => {
+    console.log('[StoryRenderer] Delayed registration attempt...');
+    try {
+      // Try to prepare stories if not already done
+      if (storybookView && (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0)) {
+        if (typeof storybookView.createPreparedStoryMapping === 'function') {
+          console.log('[StoryRenderer] Calling createPreparedStoryMapping from configure...');
+          await storybookView.createPreparedStoryMapping();
+        }
+      }
+      registerStoriesWithNative();
+    } catch (e) {
+      console.error('[StoryRenderer] Delayed registration failed:', e);
+    }
+  }, 5000);
 }
 
 type StoryRendererProps = {
@@ -85,19 +104,29 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
     async function renderStory() {
       try {
         if (!storybookView) {
+          console.error('[StoryRenderer] Storybook not configured. Call configure(view) first.');
           setError('Storybook not configured. Call configure(view) first.');
           setLoading(false);
           return;
         }
 
         const storyId = storyNameToId(storyName);
+        console.log(`[StoryRenderer] Rendering story: ${storyName} (id: ${storyId})`);
 
         // Wait for Storybook to be ready and prepare story mappings
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
-          await storybookView.createPreparedStoryMapping();
+          console.log('[StoryRenderer] Calling createPreparedStoryMapping...');
+          try {
+            await storybookView.createPreparedStoryMapping();
+            console.log('[StoryRenderer] createPreparedStoryMapping completed');
+          } catch (prepError) {
+            console.error('[StoryRenderer] createPreparedStoryMapping failed:', prepError);
+            // Continue anyway - try to register what we have
+          }
         }
 
         // Register all stories with native module for test discovery
+        // Do this before checking for the specific story so manifest gets created even if story lookup fails
         registerStoriesWithNative();
 
         const preparedStory = storybookView._idToPrepared[storyId];

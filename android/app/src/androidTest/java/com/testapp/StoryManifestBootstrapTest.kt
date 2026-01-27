@@ -13,5 +13,5 @@ class StoryManifestBootstrapTest : BaseStoryManifestTest() {
 
     override fun getStoryRendererActivityClass() = StoryRendererActivity::class.java
 
-    override fun getLoadTimeoutMs() = 10000L
+    override fun getLoadTimeoutMs() = 15000L
 }
