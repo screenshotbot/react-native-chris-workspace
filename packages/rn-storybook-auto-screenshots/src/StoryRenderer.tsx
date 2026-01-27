@@ -139,24 +139,25 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
  * Get all available story IDs from Storybook's registry.
  */
 export function getAllStoryIds(): string[] {
-  if (!storybookView?._storyIndex?.entries) {
+  if (!storybookView?._idToPrepared) {
     return [];
   }
-  return Object.keys(storybookView._storyIndex.entries);
+  return Object.keys(storybookView._idToPrepared);
 }
 
 /**
  * Get all stories with their metadata.
+ * Uses _idToPrepared which is populated by createPreparedStoryMapping().
  */
 export function getAllStories(): Array<{ id: string; title: string; name: string }> {
-  if (!storybookView?._storyIndex?.entries) {
+  if (!storybookView?._idToPrepared) {
     return [];
   }
 
-  return Object.entries(storybookView._storyIndex.entries).map(([id, entry]: [string, any]) => ({
+  return Object.entries(storybookView._idToPrepared).map(([id, preparedStory]: [string, any]) => ({
     id,
-    title: entry.title,
-    name: entry.name,
+    title: preparedStory.title,
+    name: preparedStory.name,
   }));
 }
 
