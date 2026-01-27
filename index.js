@@ -6,7 +6,7 @@ import { AppRegistry } from 'react-native';
 import { name as appName } from './app.json';
 
 // Modes: 'app' | 'storybook' | 'story-renderer-test'
-const MODE = 'story-renderer-test';
+const MODE = 'app';
 
 let RootComponent;
 
@@ -24,4 +24,12 @@ if (MODE === 'storybook') {
   RootComponent = require('./App').default;
 }
 
+// Register main app component
 AppRegistry.registerComponent(appName, () => RootComponent);
+
+// Register StoryRenderer component for screenshot tests
+// This is used by StoryRendererActivity to render individual stories
+const { view } = require('./.rnstorybook/storybook.requires');
+const { configure, StoryRenderer } = require('rn-storybook-auto-screenshots');
+configure(view);
+AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);

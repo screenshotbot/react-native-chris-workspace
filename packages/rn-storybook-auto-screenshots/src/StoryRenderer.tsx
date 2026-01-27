@@ -17,6 +17,25 @@ let storybookView: any = null;
  */
 export function configure(view: any) {
   storybookView = view;
+  console.log('[StoryRenderer] configure() called with view');
+
+  // Try to register stories after a delay, as a fallback
+  // This helps ensure stories are registered even if the component rendering fails
+  setTimeout(async () => {
+    console.log('[StoryRenderer] Delayed registration attempt...');
+    try {
+      // Try to prepare stories if not already done
+      if (storybookView && (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0)) {
+        if (typeof storybookView.createPreparedStoryMapping === 'function') {
+          console.log('[StoryRenderer] Calling createPreparedStoryMapping from configure...');
+          await storybookView.createPreparedStoryMapping();
+        }
+      }
+      registerStoriesWithNative();
+    } catch (e) {
+      console.error('[StoryRenderer] Delayed registration failed:', e);
+    }
+  }, 5000);
 }
 
 type StoryRendererProps = {
@@ -39,19 +58,34 @@ function storyNameToId(storyName: string): string {
  */
 let storiesRegistered = false;
 function registerStoriesWithNative() {
-  if (storiesRegistered || !StorybookRegistry) {
+  if (storiesRegistered) {
+    console.log('[StoryRenderer] Stories already registered, skipping');
+    return;
+  }
+
+  if (!StorybookRegistry) {
+    console.warn('[StoryRenderer] StorybookRegistry native module not available');
     return;
   }
 
   try {
+    // Log available data sources for debugging
+    const hasStoryIndex = !!storybookView?._storyIndex?.entries;
+    const hasIdToPrepared = !!storybookView?._idToPrepared;
+    console.log(`[StoryRenderer] Data sources: _storyIndex=${hasStoryIndex}, _idToPrepared=${hasIdToPrepared}`);
+
     const stories = getAllStories();
+    console.log(`[StoryRenderer] Found ${stories.length} stories`);
+
     if (stories.length > 0) {
       StorybookRegistry.registerStories(stories);
       storiesRegistered = true;
-      console.log(`Registered ${stories.length} stories with native module`);
+      console.log(`[StoryRenderer] Registered ${stories.length} stories with native module`);
+    } else {
+      console.warn('[StoryRenderer] No stories found to register');
     }
   } catch (e) {
-    console.warn('Failed to register stories with native module:', e);
+    console.error('[StoryRenderer] Failed to register stories with native module:', e);
   }
 }
 
@@ -70,19 +104,29 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
     async function renderStory() {
       try {
         if (!storybookView) {
+          console.error('[StoryRenderer] Storybook not configured. Call configure(view) first.');
           setError('Storybook not configured. Call configure(view) first.');
           setLoading(false);
           return;
         }
 
         const storyId = storyNameToId(storyName);
+        console.log(`[StoryRenderer] Rendering story: ${storyName} (id: ${storyId})`);
 
         // Wait for Storybook to be ready and prepare story mappings
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
-          await storybookView.createPreparedStoryMapping();
+          console.log('[StoryRenderer] Calling createPreparedStoryMapping...');
+          try {
+            await storybookView.createPreparedStoryMapping();
+            console.log('[StoryRenderer] createPreparedStoryMapping completed');
+          } catch (prepError) {
+            console.error('[StoryRenderer] createPreparedStoryMapping failed:', prepError);
+            // Continue anyway - try to register what we have
+          }
         }
 
         // Register all stories with native module for test discovery
+        // Do this before checking for the specific story so manifest gets created even if story lookup fails
         registerStoriesWithNative();
 
         const preparedStory = storybookView._idToPrepared[storyId];
@@ -139,25 +183,59 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
  * Get all available story IDs from Storybook's registry.
  */
 export function getAllStoryIds(): string[] {
-  if (!storybookView?._storyIndex?.entries) {
-    return [];
+  // Try _storyIndex first, then fall back to _idToPrepared
+  if (storybookView?._storyIndex?.entries) {
+    return Object.keys(storybookView._storyIndex.entries);
   }
-  return Object.keys(storybookView._storyIndex.entries);
+  if (storybookView?._idToPrepared) {
+    return Object.keys(storybookView._idToPrepared);
+  }
+  return [];
+}
+
+/**
+ * Parse story ID to extract title and name.
+ * Story IDs are in format "title--name" (lowercase, hyphenated).
+ */
+function parseStoryId(id: string): { title: string; name: string } {
+  const parts = id.split('--');
+  if (parts.length >= 2) {
+    // Convert kebab-case back to Title Case
+    const title = parts[0].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    const name = parts.slice(1).join('--').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    return { title, name };
+  }
+  return { title: id, name: 'Default' };
 }
 
 /**
  * Get all stories with their metadata.
+ * Tries _storyIndex.entries first, falls back to _idToPrepared with ID parsing.
  */
 export function getAllStories(): Array<{ id: string; title: string; name: string }> {
-  if (!storybookView?._storyIndex?.entries) {
-    return [];
+  // Prefer _storyIndex.entries as it has proper metadata
+  if (storybookView?._storyIndex?.entries) {
+    return Object.entries(storybookView._storyIndex.entries).map(([id, entry]: [string, any]) => ({
+      id,
+      title: entry.title,
+      name: entry.name,
+    }));
   }
 
-  return Object.entries(storybookView._storyIndex.entries).map(([id, entry]: [string, any]) => ({
-    id,
-    title: entry.title,
-    name: entry.name,
-  }));
+  // Fall back to _idToPrepared and try to get metadata from prepared story or parse ID
+  if (storybookView?._idToPrepared) {
+    return Object.entries(storybookView._idToPrepared).map(([id, preparedStory]: [string, any]) => {
+      // Try to get title/name from prepared story properties
+      if (preparedStory.title && preparedStory.name) {
+        return { id, title: preparedStory.title, name: preparedStory.name };
+      }
+      // Fall back to parsing the ID
+      const parsed = parseStoryId(id);
+      return { id, title: parsed.title, name: parsed.name };
+    });
+  }
+
+  return [];
 }
 
 const styles = StyleSheet.create({
