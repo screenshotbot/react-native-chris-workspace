@@ -48,4 +48,11 @@ repositories {
 dependencies {
     implementation "com.facebook.react:react-android:+"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${safeExtGet('kotlinVersion', '1.9.23')}"
+
+    // Test infrastructure dependencies - using api so they're available to apps extending base classes
+    api "androidx.test.ext:junit:1.1.5"
+    api "androidx.test:runner:1.5.2"
+    api "androidx.test:rules:1.5.0"
+    api "androidx.test:core:1.5.0"
+    api "io.screenshotbot.screenshot-tests-for-android:core:1.0.1"
 }
