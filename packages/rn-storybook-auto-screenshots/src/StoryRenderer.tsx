@@ -65,30 +65,42 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<string>('initializing');
 
   useEffect(() => {
     async function renderStory() {
       try {
+        console.log('[StoryRenderer] Starting render for:', storyName);
+        setDebugInfo(`loading: ${storyName}`);
+
         if (!storybookView) {
+          console.log('[StoryRenderer] ERROR: storybookView not configured');
           setError('Storybook not configured. Call configure(view) first.');
           setLoading(false);
           return;
         }
 
         const storyId = storyNameToId(storyName);
+        console.log('[StoryRenderer] Story ID:', storyId);
+        setDebugInfo(`storyId: ${storyId}`);
 
         // Wait for Storybook to be ready and prepare story mappings
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
+          console.log('[StoryRenderer] Creating prepared story mapping...');
+          setDebugInfo('creating story mapping...');
           await storybookView.createPreparedStoryMapping();
+          console.log('[StoryRenderer] Story mapping created');
         }
 
         // Register all stories with native module for test discovery
         registerStoriesWithNative();
 
         const preparedStory = storybookView._idToPrepared[storyId];
+        console.log('[StoryRenderer] Found prepared story:', !!preparedStory);
 
         if (!preparedStory) {
           const availableStories = Object.keys(storybookView._idToPrepared || {}).join(', ');
+          console.log('[StoryRenderer] Available stories:', availableStories);
           setError(`Story "${storyId}" not found. Available: ${availableStories}`);
           setLoading(false);
           return;
@@ -96,14 +108,20 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
 
         // Get the full story context from Storybook's preview
         const storyContext = storybookView._preview.getStoryContext(preparedStory);
+        console.log('[StoryRenderer] Got story context');
 
         // Render the story using Storybook's prepared story
         const { unboundStoryFn: StoryComponent } = preparedStory;
+        console.log('[StoryRenderer] Got StoryComponent:', typeof StoryComponent);
+
         const rendered = <StoryComponent {...storyContext} />;
 
         setStoryContent(rendered);
+        setDebugInfo(`rendered: ${storyName}`);
         setLoading(false);
+        console.log('[StoryRenderer] Story rendered successfully');
       } catch (e) {
+        console.log('[StoryRenderer] ERROR:', e);
         setError(`Error rendering story: ${e}`);
         setLoading(false);
       }
@@ -114,22 +132,23 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text>Loading story...</Text>
+      <View style={[styles.container, styles.debugLoading]}>
+        <Text style={styles.debugText}>Loading: {storyName}</Text>
+        <Text style={styles.debugText}>Debug: {debugInfo}</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, styles.debugError]}>
         <Text style={styles.error}>{error}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.storyContainer}>
       {storyContent}
     </View>
   );
@@ -167,9 +186,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
+  storyContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  debugLoading: {
+    backgroundColor: '#FFFFCC', // Yellow tint for loading state
+  },
+  debugError: {
+    backgroundColor: '#FFCCCC', // Red tint for error state
+  },
+  debugText: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+    padding: 10,
+  },
   error: {
     color: 'red',
     textAlign: 'center',
     padding: 20,
+    fontSize: 14,
   },
 });
