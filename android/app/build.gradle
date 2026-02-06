@@ -149,7 +149,7 @@ screenshotbot {
 // This prevents false positives in Screenshotbot where files differ only in
 // EXIF/metadata but have identical pixel data.
 afterEvaluate {
-    tasks.named('pullDebugAndroidTestScreenshots').configure {
+    tasks.named('recordDebugAndroidTestScreenshotTest').configure {
         doLast {
             def screenshotDir = file("screenshots")
             if (screenshotDir.exists()) {
