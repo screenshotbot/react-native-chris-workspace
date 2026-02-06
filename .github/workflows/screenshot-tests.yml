@@ -84,20 +84,10 @@ jobs:
       - name: Run screenshot tests
         env:
           EAASE_API_TOKEN: ${{ secrets.EAASE_API_TOKEN }}
-        run: |
-          # Prebuild the binaries before requesting the emulator
-          ./android/gradlew -p android :app:assembleDebugAndroidTest
-          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordDebugAndroidTestScreenshotTest
-
-      - name: Strip PNG metadata
-        run: |
-          sudo apt-get install -y -qq libimage-exiftool-perl
-          exiftool -all= -overwrite_original android/app/screenshots/*.png
-
-      - name: Upload to Screenshotbot
-        env:
           SCREENSHOTBOT_API_KEY: ${{ secrets.SCREENSHOTBOT_API_KEY }}
           SCREENSHOTBOT_API_SECRET: ${{ secrets.SCREENSHOTBOT_API_SECRET }}
         run: |
-          ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotbotCIUploadSnapshots
+          # Prebuild the binaries before requesting the emulator
+          ./android/gradlew -p android :app:assembleDebugAndroidTest
+          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotbotCI
 
