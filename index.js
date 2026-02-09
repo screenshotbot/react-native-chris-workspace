@@ -18,6 +18,9 @@ if (MODE === 'storybook') {
   const { configure, StoryRenderer } = require('rn-storybook-auto-screenshots');
   configure(view);
 
+  // Register StoryRenderer for BaseStoryRendererActivity
+  AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);
+
   // Render a specific story to test
   RootComponent = () => StoryRenderer({ storyName: 'MyFeature/Initial' });
 } else {
