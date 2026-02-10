@@ -4,6 +4,12 @@
   "description": "Auto-detect Storybook stories and generate screenshot tests for React Native",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "android/src/",
+    "android/build.gradle",
+    "react-native.config.js"
+  ],
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build"
