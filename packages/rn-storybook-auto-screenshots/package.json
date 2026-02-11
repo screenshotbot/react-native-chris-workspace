@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "jest",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -28,14 +29,21 @@
   "author": "Screenshotbot",
   "license": "Apache-2.0",
   "peerDependencies": {
+    "@storybook/react-native": "*",
     "react": "*",
-    "react-native": "*",
-    "@storybook/react-native": "*"
+    "react-native": "*"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
   },
   "devDependencies": {
+    "@storybook/react-native": "*",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
     "react": "*",
     "react-native": "*",
-    "@storybook/react-native": "*",
+    "ts-jest": "^29.4.6",
     "typescript": "^5.0.0"
   }
 }
