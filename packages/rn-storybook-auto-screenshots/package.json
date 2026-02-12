@@ -35,7 +35,8 @@
   },
   "jest": {
     "preset": "ts-jest",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/src"]
   },
   "devDependencies": {
     "@storybook/react-native": "*",
