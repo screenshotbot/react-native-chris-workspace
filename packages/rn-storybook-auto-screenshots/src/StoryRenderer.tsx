@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, NativeModules } from 'react-native';
+import { storyNameToId } from './utils';
 
 const { StorybookRegistry } = NativeModules;
 
@@ -22,16 +23,6 @@ export function configure(view: any) {
 type StoryRendererProps = {
   storyName?: string;
 };
-
-/**
- * Converts a story name like "MyFeature/Initial" to Storybook's ID format "myfeature--initial"
- */
-function storyNameToId(storyName: string): string {
-  const [title, name] = storyName.split('/');
-  const titleKebab = title.toLowerCase().replace(/\s+/g, '-');
-  const nameKebab = name.toLowerCase().replace(/\s+/g, '-');
-  return `${titleKebab}--${nameKebab}`;
-}
 
 /**
  * Register all available stories with the native module.
