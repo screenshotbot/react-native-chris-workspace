@@ -144,3 +144,28 @@ dependencies {
 screenshotbot {
     mainBranch "main"
 }
+
+// Strip PNG metadata (timestamps, etc.) after pulling screenshots from the device.
+// This prevents false positives in Screenshotbot where files differ only in EXIF data.
+afterEvaluate {
+    tasks.named('recordDebugAndroidTestScreenshotTest').configure {
+        doLast {
+            def screenshotDir = file("build/screenshotsDebugAndroidTest/images")
+            if (!screenshotDir.exists()) {
+                screenshotDir = file("screenshots")
+            }
+            logger.lifecycle("Stripping PNG metadata from: ${screenshotDir.absolutePath}")
+            if (screenshotDir.exists()) {
+                screenshotDir.listFiles().each { pngFile ->
+                    if (pngFile.name.endsWith('.png')) {
+                        def image = javax.imageio.ImageIO.read(pngFile)
+                        if (image != null) {
+                            javax.imageio.ImageIO.write(image, "png", pngFile)
+                            logger.lifecycle("  Stripped: ${pngFile.name}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
