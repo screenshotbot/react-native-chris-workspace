@@ -1,12 +1,11 @@
 package com.rnstorybookautoscreenshots
 
-import android.graphics.BitmapFactory
-import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.test.runner.AndroidJUnitRunner
 import com.facebook.testing.screenshot.ScreenshotRunner
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
+import java.nio.ByteBuffer
 
 /**
  * Base test runner for screenshot tests.
@@ -48,8 +47,10 @@ open class BaseScreenshotTestRunner : AndroidJUnitRunner() {
     }
 
     /**
-     * Re-encode all PNG screenshots to strip EXIF metadata (timestamps, etc.)
-     * that causes false positives in screenshot diffing tools.
+     * Strip non-essential PNG chunks (tIME, tEXt, iTXt, zTXt) from all screenshots.
+     * These chunks contain metadata like timestamps that cause false positives
+     * in screenshot diffing tools. This operates at the byte level to preserve
+     * the exact pixel data without re-encoding.
      */
     private fun stripPngMetadata() {
         val screenshotDir = File(
@@ -57,14 +58,38 @@ open class BaseScreenshotTestRunner : AndroidJUnitRunner() {
         )
         screenshotDir.listFiles()?.filter { it.extension == "png" }?.forEach { file ->
             try {
-                val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return@forEach
-                FileOutputStream(file).use { out ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                }
-                bitmap.recycle()
+                stripPngChunks(file)
             } catch (e: Exception) {
                 // Don't fail the test run over metadata stripping
             }
         }
+    }
+
+    private val METADATA_CHUNKS = setOf("tIME", "tEXt", "iTXt", "zTXt", "pHYs", "gAMA", "cHRM", "sRGB", "iCCP")
+    private val PNG_SIGNATURE = byteArrayOf(-119, 80, 78, 71, 13, 10, 26, 10) // \x89PNG\r\n\x1a\n
+
+    private fun stripPngChunks(file: File) {
+        val data = file.readBytes()
+        if (data.size < 8 || !data.sliceArray(0..7).contentEquals(PNG_SIGNATURE)) return
+
+        val output = ByteArrayOutputStream()
+        output.write(PNG_SIGNATURE)
+
+        var offset = 8
+        while (offset + 8 <= data.size) {
+            val length = ByteBuffer.wrap(data, offset, 4).int
+            val chunkType = String(data, offset + 4, 4)
+            val totalChunkSize = 4 + 4 + length + 4 // length + type + data + crc
+
+            if (offset + totalChunkSize > data.size) break
+
+            if (chunkType !in METADATA_CHUNKS) {
+                output.write(data, offset, totalChunkSize)
+            }
+
+            offset += totalChunkSize
+        }
+
+        file.writeBytes(output.toByteArray())
     }
 }
