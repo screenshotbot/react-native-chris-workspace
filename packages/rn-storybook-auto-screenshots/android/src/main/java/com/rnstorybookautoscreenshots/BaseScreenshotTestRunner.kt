@@ -1,12 +1,9 @@
 package com.rnstorybookautoscreenshots
 
 import android.os.Bundle
-import android.util.Log
 import androidx.test.runner.AndroidJUnitRunner
 import com.facebook.testing.screenshot.ScreenshotRunner
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.nio.ByteBuffer
 
 /**
  * Base test runner for screenshot tests.
@@ -42,67 +39,7 @@ open class BaseScreenshotTestRunner : AndroidJUnitRunner() {
     }
 
     override fun finish(resultCode: Int, results: Bundle?) {
-        stripPngMetadata()
         ScreenshotRunner.onDestroy()
         super.finish(resultCode, results)
-    }
-
-    /**
-     * Strip non-essential PNG chunks (tIME, tEXt, iTXt, zTXt) from all screenshots.
-     * These chunks contain metadata like timestamps that cause false positives
-     * in screenshot diffing tools. This operates at the byte level to preserve
-     * the exact pixel data without re-encoding.
-     */
-    private fun stripPngMetadata() {
-        val albumPath = System.getProperty("com.facebook.testing.screenshot.album")
-        Log.i(TAG, "stripPngMetadata: album path = $albumPath")
-        if (albumPath == null) return
-
-        val screenshotDir = File(albumPath)
-        val pngFiles = screenshotDir.listFiles()?.filter { it.extension == "png" } ?: emptyList()
-        Log.i(TAG, "stripPngMetadata: found ${pngFiles.size} PNG files in ${screenshotDir.absolutePath}")
-
-        pngFiles.forEach { file ->
-            try {
-                val sizeBefore = file.length()
-                stripPngChunks(file)
-                val sizeAfter = file.length()
-                Log.i(TAG, "stripPngMetadata: ${file.name} $sizeBefore -> $sizeAfter bytes")
-            } catch (e: Exception) {
-                Log.w(TAG, "stripPngMetadata: failed on ${file.name}", e)
-            }
-        }
-    }
-
-    companion object {
-        private const val TAG = "ScreenshotTestRunner"
-    }
-
-    private val METADATA_CHUNKS = setOf("tIME", "tEXt", "iTXt", "zTXt", "pHYs", "gAMA", "cHRM", "sRGB", "iCCP")
-    private val PNG_SIGNATURE = byteArrayOf(-119, 80, 78, 71, 13, 10, 26, 10) // \x89PNG\r\n\x1a\n
-
-    private fun stripPngChunks(file: File) {
-        val data = file.readBytes()
-        if (data.size < 8 || !data.sliceArray(0..7).contentEquals(PNG_SIGNATURE)) return
-
-        val output = ByteArrayOutputStream()
-        output.write(PNG_SIGNATURE)
-
-        var offset = 8
-        while (offset + 8 <= data.size) {
-            val length = ByteBuffer.wrap(data, offset, 4).int
-            val chunkType = String(data, offset + 4, 4)
-            val totalChunkSize = 4 + 4 + length + 4 // length + type + data + crc
-
-            if (offset + totalChunkSize > data.size) break
-
-            if (chunkType !in METADATA_CHUNKS) {
-                output.write(data, offset, totalChunkSize)
-            }
-
-            offset += totalChunkSize
-        }
-
-        file.writeBytes(output.toByteArray())
     }
 }
