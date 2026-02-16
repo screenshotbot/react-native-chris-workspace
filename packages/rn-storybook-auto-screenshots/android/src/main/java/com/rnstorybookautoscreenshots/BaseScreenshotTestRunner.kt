@@ -1,6 +1,7 @@
 package com.rnstorybookautoscreenshots
 
 import android.os.Bundle
+import android.util.Log
 import androidx.test.runner.AndroidJUnitRunner
 import com.facebook.testing.screenshot.ScreenshotRunner
 import java.io.ByteArrayOutputStream
@@ -53,16 +54,28 @@ open class BaseScreenshotTestRunner : AndroidJUnitRunner() {
      * the exact pixel data without re-encoding.
      */
     private fun stripPngMetadata() {
-        val screenshotDir = File(
-            System.getProperty("com.facebook.testing.screenshot.album") ?: return
-        )
-        screenshotDir.listFiles()?.filter { it.extension == "png" }?.forEach { file ->
+        val albumPath = System.getProperty("com.facebook.testing.screenshot.album")
+        Log.i(TAG, "stripPngMetadata: album path = $albumPath")
+        if (albumPath == null) return
+
+        val screenshotDir = File(albumPath)
+        val pngFiles = screenshotDir.listFiles()?.filter { it.extension == "png" } ?: emptyList()
+        Log.i(TAG, "stripPngMetadata: found ${pngFiles.size} PNG files in ${screenshotDir.absolutePath}")
+
+        pngFiles.forEach { file ->
             try {
+                val sizeBefore = file.length()
                 stripPngChunks(file)
+                val sizeAfter = file.length()
+                Log.i(TAG, "stripPngMetadata: ${file.name} $sizeBefore -> $sizeAfter bytes")
             } catch (e: Exception) {
-                // Don't fail the test run over metadata stripping
+                Log.w(TAG, "stripPngMetadata: failed on ${file.name}", e)
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "ScreenshotTestRunner"
     }
 
     private val METADATA_CHUNKS = setOf("tIME", "tEXt", "iTXt", "zTXt", "pHYs", "gAMA", "cHRM", "sRGB", "iCCP")
