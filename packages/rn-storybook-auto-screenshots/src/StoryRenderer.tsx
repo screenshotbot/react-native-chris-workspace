@@ -29,7 +29,8 @@ type StoryRendererProps = {
  * This allows the Android test to discover stories automatically.
  */
 let storiesRegistered = false;
-function registerStoriesWithNative() {
+/** @internal Exported for testing only */
+export function registerStoriesWithNative() {
   if (storiesRegistered || !StorybookRegistry) {
     return;
   }
