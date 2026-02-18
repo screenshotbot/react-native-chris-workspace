@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Rect
 import android.util.Log
 import android.widget.ImageView
 import androidx.test.core.app.ActivityScenario
@@ -178,16 +177,16 @@ abstract class BaseStoryScreenshotTest {
             val canvas = Canvas(fullBitmap)
             rootView.draw(canvas)
 
-            // Get the content view's position within the window to determine system bar sizes
-            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
-            val contentRect = Rect()
-            contentView.getGlobalVisibleRect(contentRect)
+            // Use WindowInsets to get exact system bar pixel sizes (API 30+)
+            val windowInsets = rootView.rootWindowInsets
+            val topInset = windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top
+            val bottomInset = windowInsets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
+            Log.d(TAG, "System bar insets - top: $topInset, bottom: $bottomInset, bitmap: ${fullBitmap.width}x${fullBitmap.height}")
 
             // Crop to just the content area (between status bar and nav bar)
-            val cropped = Bitmap.createBitmap(
-                fullBitmap, contentRect.left, contentRect.top,
-                contentRect.width(), contentRect.height()
-            )
+            val cropTop = topInset
+            val cropHeight = fullBitmap.height - topInset - bottomInset
+            val cropped = Bitmap.createBitmap(fullBitmap, 0, cropTop, fullBitmap.width, cropHeight)
             fullBitmap.recycle()
 
             // Render the cropped bitmap in an ImageView at fixed dp dimensions
