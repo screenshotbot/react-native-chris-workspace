@@ -191,7 +191,7 @@ abstract class BaseStoryScreenshotTest {
 
             // Render the cropped bitmap in an ImageView at fixed dp dimensions
             val imageView = ImageView(activity)
-            imageView.scaleType = ImageView.ScaleType.FIT_CENTER
+            imageView.scaleType = ImageView.ScaleType.CENTER_CROP
             imageView.setImageBitmap(cropped)
 
             ViewHelpers.setupView(imageView)
