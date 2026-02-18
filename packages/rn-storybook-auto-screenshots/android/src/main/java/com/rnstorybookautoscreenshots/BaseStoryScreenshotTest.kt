@@ -2,7 +2,11 @@ package com.rnstorybookautoscreenshots
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.util.Log
+import android.widget.ImageView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
@@ -164,24 +168,43 @@ abstract class BaseStoryScreenshotTest {
         Thread.sleep(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
-            // Get the React Native root view (first child of the content frame)
-            // This excludes the status bar and navigation bar
-            val contentFrame = activity.findViewById<android.view.ViewGroup>(android.R.id.content)
-            val reactRootView = contentFrame.getChildAt(0)
+            val rootView = activity.window.decorView.rootView
 
             // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            // Pin dimensions so screenshots are consistent regardless of emulator screen size
-            ViewHelpers.setupView(reactRootView)
+            // Draw the full window to a bitmap
+            val fullBitmap = Bitmap.createBitmap(rootView.width, rootView.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(fullBitmap)
+            rootView.draw(canvas)
+
+            // Get the content view's position within the window to determine system bar sizes
+            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
+            val contentRect = Rect()
+            contentView.getGlobalVisibleRect(contentRect)
+
+            // Crop to just the content area (between status bar and nav bar)
+            val cropped = Bitmap.createBitmap(
+                fullBitmap, contentRect.left, contentRect.top,
+                contentRect.width(), contentRect.height()
+            )
+            fullBitmap.recycle()
+
+            // Render the cropped bitmap in an ImageView at fixed dp dimensions
+            val imageView = ImageView(activity)
+            imageView.scaleType = ImageView.ScaleType.FIT_CENTER
+            imageView.setImageBitmap(cropped)
+
+            ViewHelpers.setupView(imageView)
                 .setExactWidthDp(getScreenshotWidthDp())
                 .setExactHeightDp(getScreenshotHeightDp())
                 .layout()
 
-            Screenshot.snap(reactRootView)
+            Screenshot.snap(imageView)
                 .setName(screenshotName)
                 .record()
 
+            cropped.recycle()
             Log.d(TAG, "Screenshot captured: $screenshotName")
         }
 
