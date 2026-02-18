@@ -7,6 +7,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -34,6 +35,8 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+        private const val DEFAULT_SCREENSHOT_WIDTH_DP = 360
+        private const val DEFAULT_SCREENSHOT_HEIGHT_DP = 640
     }
 
     @get:Rule
@@ -65,6 +68,20 @@ abstract class BaseStoryScreenshotTest {
      * Default is "MyFeature/Initial".
      */
     open fun getBootstrapStoryName(): String = "MyFeature/Initial"
+
+    /**
+     * Override to customize the screenshot width in dp.
+     * This ensures consistent screenshot dimensions regardless of emulator screen size.
+     * Default is 360dp (standard phone width).
+     */
+    open fun getScreenshotWidthDp(): Int = DEFAULT_SCREENSHOT_WIDTH_DP
+
+    /**
+     * Override to customize the screenshot height in dp.
+     * This ensures consistent screenshot dimensions regardless of emulator screen size.
+     * Default is 640dp.
+     */
+    open fun getScreenshotHeightDp(): Int = DEFAULT_SCREENSHOT_HEIGHT_DP
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -147,15 +164,18 @@ abstract class BaseStoryScreenshotTest {
         Thread.sleep(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
+            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
 
             // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
-            Screenshot.snap(rootView)
+            // Pin dimensions so screenshots are consistent regardless of emulator screen size
+            ViewHelpers.setupView(contentView)
+                .setExactWidthDp(getScreenshotWidthDp())
+                .setExactHeightDp(getScreenshotHeightDp())
+                .layout()
+
+            Screenshot.snap(contentView)
                 .setName(screenshotName)
                 .record()
 
