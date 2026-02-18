@@ -44,9 +44,11 @@ class ScreenshotTest {
             val canvas = Canvas(fullBitmap)
             rootView.draw(canvas)
 
-            val windowInsets = rootView.rootWindowInsets
-            val topInset = windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top
-            val bottomInset = windowInsets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
+            val res = activity.resources
+            val statusBarId = res.getIdentifier("status_bar_height", "dimen", "android")
+            val navBarId = res.getIdentifier("navigation_bar_height", "dimen", "android")
+            val topInset = if (statusBarId > 0) res.getDimensionPixelSize(statusBarId) else 0
+            val bottomInset = if (navBarId > 0) res.getDimensionPixelSize(navBarId) else 0
 
             val cropHeight = fullBitmap.height - topInset - bottomInset
             val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)

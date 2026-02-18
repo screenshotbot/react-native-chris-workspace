@@ -177,11 +177,13 @@ abstract class BaseStoryScreenshotTest {
             val canvas = Canvas(fullBitmap)
             rootView.draw(canvas)
 
-            // Use WindowInsets to get exact system bar pixel sizes (API 30+)
-            val windowInsets = rootView.rootWindowInsets
-            val topInset = windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top
-            val bottomInset = windowInsets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
-            Log.d(TAG, "System bar insets - top: $topInset, bottom: $bottomInset, bitmap: ${fullBitmap.width}x${fullBitmap.height}")
+            // Get system bar heights from system resources (works reliably in test context)
+            val res = activity.resources
+            val statusBarId = res.getIdentifier("status_bar_height", "dimen", "android")
+            val navBarId = res.getIdentifier("navigation_bar_height", "dimen", "android")
+            val topInset = if (statusBarId > 0) res.getDimensionPixelSize(statusBarId) else 0
+            val bottomInset = if (navBarId > 0) res.getDimensionPixelSize(navBarId) else 0
+            Log.d(TAG, "System bar heights - top: $topInset, bottom: $bottomInset, bitmap: ${fullBitmap.width}x${fullBitmap.height}")
 
             // Crop to just the content area (between status bar and nav bar)
             val cropHeight = fullBitmap.height - topInset - bottomInset
