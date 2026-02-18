@@ -1,9 +1,12 @@
 package com.testapp
 
 import android.Manifest
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
@@ -33,12 +36,41 @@ class ScreenshotTest {
         // Wait for the app to fully load (React Native takes time to start)
         Thread.sleep(15000)
 
-        // Take screenshot of the activity
+        // Take screenshot of the activity, cropping system bars
         scenario.onActivity { activity ->
             val rootView = activity.window.decorView.rootView
-            Screenshot.snap(rootView)
+
+            val fullBitmap = Bitmap.createBitmap(rootView.width, rootView.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(fullBitmap)
+            rootView.draw(canvas)
+
+            val windowInsets = rootView.rootWindowInsets
+            val topInset = windowInsets.getInsets(android.view.WindowInsets.Type.statusBars()).top
+            val bottomInset = windowInsets.getInsets(android.view.WindowInsets.Type.navigationBars()).bottom
+
+            val cropHeight = fullBitmap.height - topInset - bottomInset
+            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)
+            fullBitmap.recycle()
+
+            val density = activity.resources.displayMetrics.density
+            val targetWidthPx = (360 * density).toInt()
+            val targetHeightPx = (640 * density).toInt()
+            val scaled = Bitmap.createScaledBitmap(cropped, targetWidthPx, targetHeightPx, true)
+            cropped.recycle()
+
+            val imageView = ImageView(activity)
+            imageView.setImageBitmap(scaled)
+
+            ViewHelpers.setupView(imageView)
+                .setExactWidthDp(360)
+                .setExactHeightDp(640)
+                .layout()
+
+            Screenshot.snap(imageView)
                 .setName("actual_app_home")
                 .record()
+
+            scaled.recycle()
         }
 
         scenario.close()

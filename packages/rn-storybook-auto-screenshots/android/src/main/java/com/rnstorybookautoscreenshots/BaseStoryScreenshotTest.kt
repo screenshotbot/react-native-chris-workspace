@@ -184,15 +184,20 @@ abstract class BaseStoryScreenshotTest {
             Log.d(TAG, "System bar insets - top: $topInset, bottom: $bottomInset, bitmap: ${fullBitmap.width}x${fullBitmap.height}")
 
             // Crop to just the content area (between status bar and nav bar)
-            val cropTop = topInset
             val cropHeight = fullBitmap.height - topInset - bottomInset
-            val cropped = Bitmap.createBitmap(fullBitmap, 0, cropTop, fullBitmap.width, cropHeight)
+            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)
             fullBitmap.recycle()
 
-            // Render the cropped bitmap in an ImageView at fixed dp dimensions
+            // Scale to exact target pixel dimensions
+            val density = activity.resources.displayMetrics.density
+            val targetWidthPx = (getScreenshotWidthDp() * density).toInt()
+            val targetHeightPx = (getScreenshotHeightDp() * density).toInt()
+            val scaled = Bitmap.createScaledBitmap(cropped, targetWidthPx, targetHeightPx, true)
+            cropped.recycle()
+
+            // Render the scaled bitmap in an ImageView at matching dimensions
             val imageView = ImageView(activity)
-            imageView.scaleType = ImageView.ScaleType.CENTER_CROP
-            imageView.setImageBitmap(cropped)
+            imageView.setImageBitmap(scaled)
 
             ViewHelpers.setupView(imageView)
                 .setExactWidthDp(getScreenshotWidthDp())
@@ -203,7 +208,7 @@ abstract class BaseStoryScreenshotTest {
                 .setName(screenshotName)
                 .record()
 
-            cropped.recycle()
+            scaled.recycle()
             Log.d(TAG, "Screenshot captured: $screenshotName")
         }
 
