@@ -164,18 +164,21 @@ abstract class BaseStoryScreenshotTest {
         Thread.sleep(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
-            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
+            // Get the React Native root view (first child of the content frame)
+            // This excludes the status bar and navigation bar
+            val contentFrame = activity.findViewById<android.view.ViewGroup>(android.R.id.content)
+            val reactRootView = contentFrame.getChildAt(0)
 
             // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
             val screenshotName = storyInfo.id.replace("--", "_")
 
             // Pin dimensions so screenshots are consistent regardless of emulator screen size
-            ViewHelpers.setupView(contentView)
+            ViewHelpers.setupView(reactRootView)
                 .setExactWidthDp(getScreenshotWidthDp())
                 .setExactHeightDp(getScreenshotHeightDp())
                 .layout()
 
-            Screenshot.snap(contentView)
+            Screenshot.snap(reactRootView)
                 .setName(screenshotName)
                 .record()
 
