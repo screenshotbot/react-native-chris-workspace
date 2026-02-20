@@ -2,15 +2,11 @@ package com.rnstorybookautoscreenshots
 
 import android.Manifest
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.util.Log
-import android.widget.ImageView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
-import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -151,47 +147,14 @@ abstract class BaseStoryScreenshotTest {
         Thread.sleep(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
-
-            // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
+            // Snap the content view directly — it sits between system bars, so no cropping needed
+            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            // Draw the full window to a bitmap
-            val fullBitmap = Bitmap.createBitmap(rootView.width, rootView.height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(fullBitmap)
-            rootView.draw(canvas)
-
-            // Get system bar heights from system resources (works reliably in test context)
-            val res = activity.resources
-            val statusBarId = res.getIdentifier("status_bar_height", "dimen", "android")
-            val navBarId = res.getIdentifier("navigation_bar_height", "dimen", "android")
-            val topInset = if (statusBarId > 0) res.getDimensionPixelSize(statusBarId) else 0
-            val bottomInset = if (navBarId > 0) res.getDimensionPixelSize(navBarId) else 0
-            Log.d(TAG, "System bar heights - top: $topInset, bottom: $bottomInset, bitmap: ${fullBitmap.width}x${fullBitmap.height}")
-
-            // Crop to just the content area (between status bar and nav bar)
-            val cropHeight = fullBitmap.height - topInset - bottomInset
-            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)
-            fullBitmap.recycle()
-
-            // Render the cropped bitmap in an ImageView at its actual dimensions (no scaling)
-            val density = activity.resources.displayMetrics.density
-            val widthDp = (cropped.width / density).toInt()
-            val heightDp = (cropped.height / density).toInt()
-
-            val imageView = ImageView(activity)
-            imageView.setImageBitmap(cropped)
-
-            ViewHelpers.setupView(imageView)
-                .setExactWidthDp(widthDp)
-                .setExactHeightDp(heightDp)
-                .layout()
-
-            Screenshot.snap(imageView)
+            Screenshot.snap(contentView)
                 .setName(screenshotName)
                 .record()
 
-            cropped.recycle()
             Log.d(TAG, "Screenshot captured: $screenshotName")
         }
 

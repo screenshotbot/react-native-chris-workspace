@@ -1,8 +1,6 @@
 package com.testapp
 
 import android.Manifest
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.widget.Button
@@ -36,41 +34,12 @@ class ScreenshotTest {
         // Wait for the app to fully load (React Native takes time to start)
         Thread.sleep(15000)
 
-        // Take screenshot of the activity, cropping system bars
+        // Snap the content view directly — it sits between system bars, so no cropping needed
         scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
-
-            val fullBitmap = Bitmap.createBitmap(rootView.width, rootView.height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(fullBitmap)
-            rootView.draw(canvas)
-
-            val res = activity.resources
-            val statusBarId = res.getIdentifier("status_bar_height", "dimen", "android")
-            val navBarId = res.getIdentifier("navigation_bar_height", "dimen", "android")
-            val topInset = if (statusBarId > 0) res.getDimensionPixelSize(statusBarId) else 0
-            val bottomInset = if (navBarId > 0) res.getDimensionPixelSize(navBarId) else 0
-
-            val cropHeight = fullBitmap.height - topInset - bottomInset
-            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)
-            fullBitmap.recycle()
-
-            val density = activity.resources.displayMetrics.density
-            val widthDp = (cropped.width / density).toInt()
-            val heightDp = (cropped.height / density).toInt()
-
-            val imageView = ImageView(activity)
-            imageView.setImageBitmap(cropped)
-
-            ViewHelpers.setupView(imageView)
-                .setExactWidthDp(widthDp)
-                .setExactHeightDp(heightDp)
-                .layout()
-
-            Screenshot.snap(imageView)
+            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
+            Screenshot.snap(contentView)
                 .setName("actual_app_home")
                 .record()
-
-            cropped.recycle()
         }
 
         scenario.close()
