@@ -38,8 +38,6 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
-        private const val DEFAULT_SCREENSHOT_WIDTH_DP = 360
-        private const val DEFAULT_SCREENSHOT_HEIGHT_DP = 640
     }
 
     @get:Rule
@@ -71,20 +69,6 @@ abstract class BaseStoryScreenshotTest {
      * Default is "MyFeature/Initial".
      */
     open fun getBootstrapStoryName(): String = "MyFeature/Initial"
-
-    /**
-     * Override to customize the screenshot width in dp.
-     * This ensures consistent screenshot dimensions regardless of emulator screen size.
-     * Default is 360dp (standard phone width).
-     */
-    open fun getScreenshotWidthDp(): Int = DEFAULT_SCREENSHOT_WIDTH_DP
-
-    /**
-     * Override to customize the screenshot height in dp.
-     * This ensures consistent screenshot dimensions regardless of emulator screen size.
-     * Default is 640dp.
-     */
-    open fun getScreenshotHeightDp(): Int = DEFAULT_SCREENSHOT_HEIGHT_DP
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -190,27 +174,24 @@ abstract class BaseStoryScreenshotTest {
             val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)
             fullBitmap.recycle()
 
-            // Scale to exact target pixel dimensions
+            // Render the cropped bitmap in an ImageView at its actual dimensions (no scaling)
             val density = activity.resources.displayMetrics.density
-            val targetWidthPx = (getScreenshotWidthDp() * density).toInt()
-            val targetHeightPx = (getScreenshotHeightDp() * density).toInt()
-            val scaled = Bitmap.createScaledBitmap(cropped, targetWidthPx, targetHeightPx, true)
-            cropped.recycle()
+            val widthDp = (cropped.width / density).toInt()
+            val heightDp = (cropped.height / density).toInt()
 
-            // Render the scaled bitmap in an ImageView at matching dimensions
             val imageView = ImageView(activity)
-            imageView.setImageBitmap(scaled)
+            imageView.setImageBitmap(cropped)
 
             ViewHelpers.setupView(imageView)
-                .setExactWidthDp(getScreenshotWidthDp())
-                .setExactHeightDp(getScreenshotHeightDp())
+                .setExactWidthDp(widthDp)
+                .setExactHeightDp(heightDp)
                 .layout()
 
             Screenshot.snap(imageView)
                 .setName(screenshotName)
                 .record()
 
-            scaled.recycle()
+            cropped.recycle()
             Log.d(TAG, "Screenshot captured: $screenshotName")
         }
 

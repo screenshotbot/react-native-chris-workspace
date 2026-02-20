@@ -55,24 +55,22 @@ class ScreenshotTest {
             fullBitmap.recycle()
 
             val density = activity.resources.displayMetrics.density
-            val targetWidthPx = (360 * density).toInt()
-            val targetHeightPx = (640 * density).toInt()
-            val scaled = Bitmap.createScaledBitmap(cropped, targetWidthPx, targetHeightPx, true)
-            cropped.recycle()
+            val widthDp = (cropped.width / density).toInt()
+            val heightDp = (cropped.height / density).toInt()
 
             val imageView = ImageView(activity)
-            imageView.setImageBitmap(scaled)
+            imageView.setImageBitmap(cropped)
 
             ViewHelpers.setupView(imageView)
-                .setExactWidthDp(360)
-                .setExactHeightDp(640)
+                .setExactWidthDp(widthDp)
+                .setExactHeightDp(heightDp)
                 .layout()
 
             Screenshot.snap(imageView)
                 .setName("actual_app_home")
                 .record()
 
-            scaled.recycle()
+            cropped.recycle()
         }
 
         scenario.close()
