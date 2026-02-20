@@ -2,12 +2,17 @@ package com.rnstorybookautoscreenshots
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.util.Log
 import android.widget.FrameLayout
+import android.widget.ImageView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -149,22 +154,38 @@ abstract class BaseStoryScreenshotTest {
 
         scenario.onActivity { activity ->
             val decorView = activity.window.decorView
-            val contentFrame = activity.findViewById<FrameLayout>(android.R.id.content)
-            val child0 = contentFrame.getChildAt(0)
-            val reactRootView = child0 ?: contentFrame
 
-            Log.d(TAG, "=== VIEW DIMENSIONS ===")
-            Log.d(TAG, "decorView: ${decorView.width}x${decorView.height}")
-            Log.d(TAG, "contentFrame: ${contentFrame.width}x${contentFrame.height}, padding top=${contentFrame.paddingTop} bottom=${contentFrame.paddingBottom}")
-            Log.d(TAG, "contentFrame child count: ${contentFrame.childCount}, child0 class: ${child0?.javaClass?.simpleName}")
-            Log.d(TAG, "reactRootView: ${reactRootView.width}x${reactRootView.height}")
+            // getWindowVisibleDisplayFrame gives the rect between system bars — no guessing needed
+            val visibleFrame = Rect()
+            decorView.getWindowVisibleDisplayFrame(visibleFrame)
+            Log.d(TAG, "visibleFrame=$visibleFrame, decorView=${decorView.width}x${decorView.height}")
+
+            val fullBitmap = Bitmap.createBitmap(decorView.width, decorView.height, Bitmap.Config.ARGB_8888)
+            decorView.draw(Canvas(fullBitmap))
+
+            val cropped = Bitmap.createBitmap(
+                fullBitmap, visibleFrame.left, visibleFrame.top,
+                visibleFrame.width(), visibleFrame.height()
+            )
+            fullBitmap.recycle()
+
+            val density = activity.resources.displayMetrics.density
+            val imageView = ImageView(activity)
+            imageView.setImageBitmap(cropped)
+            imageView.scaleType = ImageView.ScaleType.FIT_XY
+
+            ViewHelpers.setupView(imageView)
+                .setExactWidthDp((cropped.width / density).toInt())
+                .setExactHeightDp((cropped.height / density).toInt())
+                .layout()
 
             val screenshotName = storyInfo.id.replace("--", "_")
-            Screenshot.snap(reactRootView)
+            Screenshot.snap(imageView)
                 .setName(screenshotName)
                 .record()
 
-            Log.d(TAG, "Screenshot captured: $screenshotName")
+            cropped.recycle()
+            Log.d(TAG, "Screenshot captured: $screenshotName (${cropped.width}x${cropped.height})")
         }
 
         scenario.close()

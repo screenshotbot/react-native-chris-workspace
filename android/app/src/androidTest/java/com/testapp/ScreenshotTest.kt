@@ -1,7 +1,10 @@
 package com.testapp
 
 import android.Manifest
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.widget.Button
 import android.widget.ImageView
@@ -34,14 +37,35 @@ class ScreenshotTest {
         // Wait for the app to fully load (React Native takes time to start)
         Thread.sleep(15000)
 
-        // android.R.id.content is full-screen-sized with system bar padding applied by AppCompat.
-        // The React root view is the first child, sized to the usable area between bars.
         scenario.onActivity { activity ->
-            val contentFrame = activity.findViewById<android.widget.FrameLayout>(android.R.id.content)
-            val reactRootView = contentFrame.getChildAt(0) ?: contentFrame
-            Screenshot.snap(reactRootView)
+            val decorView = activity.window.decorView
+            val visibleFrame = Rect()
+            decorView.getWindowVisibleDisplayFrame(visibleFrame)
+
+            val fullBitmap = Bitmap.createBitmap(decorView.width, decorView.height, Bitmap.Config.ARGB_8888)
+            decorView.draw(Canvas(fullBitmap))
+
+            val cropped = Bitmap.createBitmap(
+                fullBitmap, visibleFrame.left, visibleFrame.top,
+                visibleFrame.width(), visibleFrame.height()
+            )
+            fullBitmap.recycle()
+
+            val density = activity.resources.displayMetrics.density
+            val imageView = ImageView(activity)
+            imageView.setImageBitmap(cropped)
+            imageView.scaleType = ImageView.ScaleType.FIT_XY
+
+            ViewHelpers.setupView(imageView)
+                .setExactWidthDp((cropped.width / density).toInt())
+                .setExactHeightDp((cropped.height / density).toInt())
+                .layout()
+
+            Screenshot.snap(imageView)
                 .setName("actual_app_home")
                 .record()
+
+            cropped.recycle()
         }
 
         scenario.close()
