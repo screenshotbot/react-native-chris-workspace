@@ -148,12 +148,18 @@ abstract class BaseStoryScreenshotTest {
         Thread.sleep(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
-            // android.R.id.content is full-screen-sized with system bar padding applied by AppCompat.
-            // The React root view is the first child, sized to the usable area between bars.
-            val contentFrame = activity.findViewById<android.widget.FrameLayout>(android.R.id.content)
-            val reactRootView = contentFrame.getChildAt(0) ?: contentFrame
-            val screenshotName = storyInfo.id.replace("--", "_")
+            val decorView = activity.window.decorView
+            val contentFrame = activity.findViewById<FrameLayout>(android.R.id.content)
+            val child0 = contentFrame.getChildAt(0)
+            val reactRootView = child0 ?: contentFrame
 
+            Log.d(TAG, "=== VIEW DIMENSIONS ===")
+            Log.d(TAG, "decorView: ${decorView.width}x${decorView.height}")
+            Log.d(TAG, "contentFrame: ${contentFrame.width}x${contentFrame.height}, padding top=${contentFrame.paddingTop} bottom=${contentFrame.paddingBottom}")
+            Log.d(TAG, "contentFrame child count: ${contentFrame.childCount}, child0 class: ${child0?.javaClass?.simpleName}")
+            Log.d(TAG, "reactRootView: ${reactRootView.width}x${reactRootView.height}")
+
+            val screenshotName = storyInfo.id.replace("--", "_")
             Screenshot.snap(reactRootView)
                 .setName(screenshotName)
                 .record()
