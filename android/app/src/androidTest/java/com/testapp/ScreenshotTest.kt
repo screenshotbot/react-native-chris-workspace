@@ -1,9 +1,13 @@
 package com.testapp
 
 import android.Manifest
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
@@ -33,12 +37,35 @@ class ScreenshotTest {
         // Wait for the app to fully load (React Native takes time to start)
         Thread.sleep(15000)
 
-        // Take screenshot of the activity
         scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
-            Screenshot.snap(rootView)
+            val decorView = activity.window.decorView
+            val visibleFrame = Rect()
+            decorView.getWindowVisibleDisplayFrame(visibleFrame)
+
+            val fullBitmap = Bitmap.createBitmap(decorView.width, decorView.height, Bitmap.Config.ARGB_8888)
+            decorView.draw(Canvas(fullBitmap))
+
+            val cropped = Bitmap.createBitmap(
+                fullBitmap, visibleFrame.left, visibleFrame.top,
+                visibleFrame.width(), visibleFrame.height()
+            )
+            fullBitmap.recycle()
+
+            val density = activity.resources.displayMetrics.density
+            val imageView = ImageView(activity)
+            imageView.setImageBitmap(cropped)
+            imageView.scaleType = ImageView.ScaleType.FIT_XY
+
+            ViewHelpers.setupView(imageView)
+                .setExactWidthDp((cropped.width / density).toInt())
+                .setExactHeightDp((cropped.height / density).toInt())
+                .layout()
+
+            Screenshot.snap(imageView)
                 .setName("actual_app_home")
                 .record()
+
+            cropped.recycle()
         }
 
         scenario.close()

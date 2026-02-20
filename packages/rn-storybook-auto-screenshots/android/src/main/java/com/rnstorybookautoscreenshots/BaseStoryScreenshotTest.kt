@@ -2,11 +2,17 @@ package com.rnstorybookautoscreenshots
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.util.Log
+import android.widget.FrameLayout
+import android.widget.ImageView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -147,19 +153,39 @@ abstract class BaseStoryScreenshotTest {
         Thread.sleep(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
+            val decorView = activity.window.decorView
 
-            // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
+            // getWindowVisibleDisplayFrame gives the rect between system bars — no guessing needed
+            val visibleFrame = Rect()
+            decorView.getWindowVisibleDisplayFrame(visibleFrame)
+            Log.d(TAG, "visibleFrame=$visibleFrame, decorView=${decorView.width}x${decorView.height}")
+
+            val fullBitmap = Bitmap.createBitmap(decorView.width, decorView.height, Bitmap.Config.ARGB_8888)
+            decorView.draw(Canvas(fullBitmap))
+
+            val cropped = Bitmap.createBitmap(
+                fullBitmap, visibleFrame.left, visibleFrame.top,
+                visibleFrame.width(), visibleFrame.height()
+            )
+            fullBitmap.recycle()
+
+            val density = activity.resources.displayMetrics.density
+            val imageView = ImageView(activity)
+            imageView.setImageBitmap(cropped)
+            imageView.scaleType = ImageView.ScaleType.FIT_XY
+
+            ViewHelpers.setupView(imageView)
+                .setExactWidthDp((cropped.width / density).toInt())
+                .setExactHeightDp((cropped.height / density).toInt())
+                .layout()
+
             val screenshotName = storyInfo.id.replace("--", "_")
-
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
-            Screenshot.snap(rootView)
+            Screenshot.snap(imageView)
                 .setName(screenshotName)
                 .record()
 
-            Log.d(TAG, "Screenshot captured: $screenshotName")
+            cropped.recycle()
+            Log.d(TAG, "Screenshot captured: $screenshotName (${cropped.width}x${cropped.height})")
         }
 
         scenario.close()
