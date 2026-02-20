@@ -34,10 +34,12 @@ class ScreenshotTest {
         // Wait for the app to fully load (React Native takes time to start)
         Thread.sleep(15000)
 
-        // Snap the content view directly — it sits between system bars, so no cropping needed
+        // android.R.id.content is full-screen-sized with system bar padding applied by AppCompat.
+        // The React root view is the first child, sized to the usable area between bars.
         scenario.onActivity { activity ->
-            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
-            Screenshot.snap(contentView)
+            val contentFrame = activity.findViewById<android.widget.FrameLayout>(android.R.id.content)
+            val reactRootView = contentFrame.getChildAt(0) ?: contentFrame
+            Screenshot.snap(reactRootView)
                 .setName("actual_app_home")
                 .record()
         }

@@ -3,6 +3,7 @@ package com.rnstorybookautoscreenshots
 import android.Manifest
 import android.content.Intent
 import android.util.Log
+import android.widget.FrameLayout
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
@@ -147,11 +148,13 @@ abstract class BaseStoryScreenshotTest {
         Thread.sleep(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
-            // Snap the content view directly — it sits between system bars, so no cropping needed
-            val contentView = activity.findViewById<android.view.View>(android.R.id.content)
+            // android.R.id.content is full-screen-sized with system bar padding applied by AppCompat.
+            // The React root view is the first child, sized to the usable area between bars.
+            val contentFrame = activity.findViewById<android.widget.FrameLayout>(android.R.id.content)
+            val reactRootView = contentFrame.getChildAt(0) ?: contentFrame
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            Screenshot.snap(contentView)
+            Screenshot.snap(reactRootView)
                 .setName(screenshotName)
                 .record()
 
