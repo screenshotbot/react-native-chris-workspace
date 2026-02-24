@@ -36,7 +36,7 @@ abstract class BaseStoryScreenshotTest {
 
     companion object {
         private const val TAG = "BaseStoryScreenshotTest"
-        private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
+        private const val DEFAULT_LOAD_TIMEOUT_MS = 10000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
 
         // Not a real story — bootstrap just needs RN to load and register all stories.

@@ -59,6 +59,13 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!loading && error && StorybookRegistry) {
+      // Story errored - signal "done, no height" to unblock the screenshot test poll
+      StorybookRegistry.setContentHeight(0);
+    }
+  }, [loading, error]);
+
+  useEffect(() => {
     async function renderStory() {
       try {
         if (!storybookView) {
@@ -126,7 +133,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
         style={styles.storyContent}
         onLayout={(e) => {
           const height = e.nativeEvent.layout.height;
-          if (StorybookRegistry) {
+          if (height > 0 && StorybookRegistry) {
             StorybookRegistry.setContentHeight(height);
           }
         }}
