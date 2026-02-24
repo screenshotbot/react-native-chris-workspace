@@ -2,11 +2,15 @@ package com.rnstorybookautoscreenshots
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.util.Log
+import android.widget.ImageView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -133,6 +137,8 @@ abstract class BaseStoryScreenshotTest {
         val storyName = storyInfo.toStoryName()
         Log.d(TAG, "Screenshotting: $storyName (id: ${storyInfo.id})")
 
+        StorybookRegistry.resetContentHeight()
+
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             getStoryRendererActivityClass()
@@ -142,23 +148,55 @@ abstract class BaseStoryScreenshotTest {
 
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
 
-        // Wait for React Native to load and render
-        Thread.sleep(getLoadTimeoutMs())
+        // Poll for React Native to render and report content height, up to the timeout
+        val deadline = System.currentTimeMillis() + getLoadTimeoutMs()
+        do {
+            Thread.sleep(100)
+        } while (StorybookRegistry.getContentHeightDp() < 0 && System.currentTimeMillis() < deadline)
+
+        // Read height on test thread before posting to UI thread, to avoid racing with onLayout
+        val capturedHeightDp = StorybookRegistry.getContentHeightDp()
+        Log.d(TAG, "Content height after wait: ${capturedHeightDp}dp")
 
         scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
+            val decorView = activity.window.decorView
 
-            // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
+            // rootWindowInsets gives the actual system bar pixel heights
+            val insets = decorView.rootWindowInsets
+            val topInset = insets?.systemWindowInsetTop ?: 0
+            val bottomInset = insets?.systemWindowInsetBottom ?: 0
+            Log.d(TAG, "rootWindowInsets: top=$topInset, bottom=$bottomInset, screen=${decorView.width}x${decorView.height}")
+
+            val density = activity.resources.displayMetrics.density
+
+            val fullBitmap = Bitmap.createBitmap(decorView.width, decorView.height, Bitmap.Config.ARGB_8888)
+            decorView.draw(Canvas(fullBitmap))
+
+            val fullContentHeight = fullBitmap.height - topInset - bottomInset
+            val cropHeight = if (capturedHeightDp > 0) {
+                (capturedHeightDp * density).toInt().coerceAtMost(fullContentHeight)
+            } else {
+                fullContentHeight
+            }
+            Log.d(TAG, "Cropping: contentHeightDp=$capturedHeightDp, cropHeight=${cropHeight}px")
+            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)
+            fullBitmap.recycle()
+            val imageView = ImageView(activity)
+            imageView.setImageBitmap(cropped)
+            imageView.scaleType = ImageView.ScaleType.FIT_XY
+
+            ViewHelpers.setupView(imageView)
+                .setExactWidthDp((cropped.width / density).toInt())
+                .setExactHeightDp((cropped.height / density).toInt())
+                .layout()
+
             val screenshotName = storyInfo.id.replace("--", "_")
-
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
-            Screenshot.snap(rootView)
+            Screenshot.snap(imageView)
                 .setName(screenshotName)
                 .record()
 
-            Log.d(TAG, "Screenshot captured: $screenshotName")
+            cropped.recycle()
+            Log.d(TAG, "Screenshot captured: $screenshotName (${cropped.width}x${cropped.height})")
         }
 
         scenario.close()

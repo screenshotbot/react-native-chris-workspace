@@ -122,7 +122,17 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
 
   return (
     <View style={styles.container}>
-      {storyContent}
+      <View
+        style={styles.storyContent}
+        onLayout={(e) => {
+          const height = e.nativeEvent.layout.height;
+          if (StorybookRegistry) {
+            StorybookRegistry.setContentHeight(height);
+          }
+        }}
+      >
+        {storyContent}
+      </View>
     </View>
   );
 }
@@ -155,9 +165,12 @@ export function getAllStories(): Array<{ id: string; title: string; name: string
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
     backgroundColor: '#FFFFFF',
+  },
+  storyContent: {
+    width: '100%',
   },
   error: {
     color: 'red',

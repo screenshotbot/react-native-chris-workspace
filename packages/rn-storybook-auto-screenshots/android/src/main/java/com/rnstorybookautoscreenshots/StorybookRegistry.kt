@@ -19,6 +19,17 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         private const val TAG = "StorybookRegistry"
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
+        @Volatile
+        private var contentHeightDp: Float = -1f
+
+        @JvmStatic
+        fun getContentHeightDp(): Float = contentHeightDp
+
+        @JvmStatic
+        fun resetContentHeight() {
+            contentHeightDp = -1f
+        }
+
         /**
          * Read stories from the manifest file.
          * Used by screenshot tests to get list of all stories.
@@ -50,6 +61,16 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     }
 
     override fun getName(): String = "StorybookRegistry"
+
+    /**
+     * Called from JS with the rendered height of the story content in dp.
+     * Used by screenshot tests to crop the bitmap to the component's natural height.
+     */
+    @ReactMethod
+    fun setContentHeight(height: Float) {
+        Companion.contentHeightDp = height
+        Log.d(TAG, "Content height reported from JS: ${height}dp")
+    }
 
     /**
      * Called from JS to register the list of available stories.
