@@ -1,97 +1,108 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# rn-storybook-auto-screenshots
 
-# Getting Started
+Automatically generate screenshot tests for every Storybook story in your React Native app.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## How it works
 
-## Step 1: Start Metro
+1. On first test run, the library launches your app and lets React Native register all Storybook stories with a native module (`StorybookRegistry`)
+2. The native module writes a `storybook_stories.json` manifest to device storage
+3. The test runner reads the manifest and launches a `StoryRendererActivity` for each story, capturing a screenshot with [screenshot-tests-for-android](https://github.com/screenshotbot/screenshot-tests-for-android)
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+No manual list of stories needed — add a story to Storybook and it gets tested automatically.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
-
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
+## Installation
 
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+npm install rn-storybook-auto-screenshots
 ```
 
-### iOS
+## Setup
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+### 1. JS side — configure and register
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+In your app's entry point (e.g. `index.js`):
+
+```js
+import { AppRegistry } from 'react-native';
+import { configure, StoryRenderer } from 'rn-storybook-auto-screenshots';
+import { view } from './.rnstorybook/storybook.requires';
+
+configure(view);
+
+AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);
+AppRegistry.registerComponent('YourApp', () => YourApp);
+```
+
+### 2. Android — create the activity
+
+In your app's `android/app/src/main/java/…` directory:
+
+```kotlin
+class StoryRendererActivity : BaseStoryRendererActivity()
+```
+
+Register it in `AndroidManifest.xml`:
+
+```xml
+<activity android:name=".StoryRendererActivity" />
+```
+
+Add the native module to your React Native package list:
+
+```kotlin
+// In your MainApplication
+override fun getPackages() = listOf(
+    RNStorybookAutoScreenshotsPackage(),
+    // ... your other packages
+)
+```
+
+### 3. Android — create the test
+
+In `android/app/src/androidTest/java/…`:
+
+```kotlin
+@RunWith(AndroidJUnit4::class)
+class StoryScreenshotTest : BaseStoryScreenshotTest() {
+    override fun getStoryRendererActivityClass() = StoryRendererActivity::class.java
+}
+```
+
+### 4. Run the tests
 
 ```sh
-bundle install
+./gradlew screenshotTests
 ```
 
-Then, and every time you update your native dependencies, run:
+## Customization
 
-```sh
-bundle exec pod install
+Override methods in `BaseStoryScreenshotTest` to customize behavior:
+
+```kotlin
+class StoryScreenshotTest : BaseStoryScreenshotTest() {
+    override fun getStoryRendererActivityClass() = StoryRendererActivity::class.java
+
+    // Skip stories you don't want to screenshot
+    override fun shouldScreenshotStory(storyInfo: StoryInfo): Boolean {
+        return storyInfo.title != "Internal"
+    }
+
+    // Adjust timeout if stories are slow to load (default: 5000ms)
+    override fun getLoadTimeoutMs() = 8000L
+}
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## JS API
 
-```sh
-# Using npm
-npm run ios
+```ts
+import { configure, StoryRenderer, getAllStories, getAllStoryIds, storyNameToId } from 'rn-storybook-auto-screenshots';
 
-# OR using Yarn
-yarn ios
+configure(view);           // Must be called once with your Storybook view instance
+getAllStories();            // Returns [{ id, title, name }]
+getAllStoryIds();           // Returns string[]
+storyNameToId('Foo/Bar');  // Converts "ComponentName/StoryName" to a Storybook ID
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## License
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Apache-2.0
