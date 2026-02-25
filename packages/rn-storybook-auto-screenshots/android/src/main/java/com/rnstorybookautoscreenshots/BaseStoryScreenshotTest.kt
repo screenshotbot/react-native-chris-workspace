@@ -34,6 +34,11 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+
+        // Not a real story — bootstrap just needs RN to load and register all stories.
+        // The StoryRenderer registers stories before attempting to look up the story name,
+        // so any string works here.
+        private const val BOOTSTRAP_STORY_NAME = "__bootstrap__"
     }
 
     @get:Rule
@@ -59,12 +64,6 @@ abstract class BaseStoryScreenshotTest {
      * Default is 10000ms.
      */
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
-
-    /**
-     * Override to provide a custom initial story for bootstrapping.
-     * Default is "MyFeature/Initial".
-     */
-    open fun getBootstrapStoryName(): String = "MyFeature/Initial"
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -176,7 +175,7 @@ abstract class BaseStoryScreenshotTest {
             ApplicationProvider.getApplicationContext(),
             getStoryRendererActivityClass()
         ).apply {
-            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, getBootstrapStoryName())
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, BOOTSTRAP_STORY_NAME)
         }
 
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
