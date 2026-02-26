@@ -21,7 +21,6 @@ open class BaseStoryRendererActivity : ReactActivity() {
 
     companion object {
         const val EXTRA_STORY_NAME = "storyName"
-        const val DEFAULT_STORY = "MyFeature/Initial"
     }
 
     /**
@@ -37,7 +36,7 @@ open class BaseStoryRendererActivity : ReactActivity() {
         return object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
             override fun getLaunchOptions(): Bundle? {
                 val bundle = Bundle()
-                val storyName = intent.getStringExtra(EXTRA_STORY_NAME) ?: DEFAULT_STORY
+                val storyName = intent.getStringExtra(EXTRA_STORY_NAME) ?: ""
                 bundle.putString("storyName", storyName)
                 return bundle
             }
