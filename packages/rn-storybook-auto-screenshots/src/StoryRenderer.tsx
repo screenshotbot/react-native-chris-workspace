@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   storyContent: {
-    width: '100%',
+    width: 360,
   },
   error: {
     color: 'red',

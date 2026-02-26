@@ -38,6 +38,8 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 10000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+        private const val DEFAULT_SCREENSHOT_WIDTH_DP = 360
+        private const val DEFAULT_SCREENSHOT_HEIGHT_DP = 640
 
         // Not a real story — bootstrap just needs RN to load and register all stories.
         // The StoryRenderer registers stories before attempting to look up the story name,
@@ -68,6 +70,19 @@ abstract class BaseStoryScreenshotTest {
      * Default is 10000ms.
      */
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
+
+    /**
+     * Override to set the screenshot viewport width in dp.
+     * Default is 360dp.
+     */
+    open fun getScreenshotWidthDp(): Int = DEFAULT_SCREENSHOT_WIDTH_DP
+
+    /**
+     * Override to set the fallback screenshot height in dp, used when the story
+     * does not report a content height (e.g. flex:1 full-screen stories).
+     * Default is 640dp.
+     */
+    open fun getScreenshotHeightDp(): Int = DEFAULT_SCREENSHOT_HEIGHT_DP
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -176,10 +191,11 @@ abstract class BaseStoryScreenshotTest {
             val cropHeight = if (capturedHeightDp > 0) {
                 (capturedHeightDp * density).toInt().coerceAtMost(fullContentHeight)
             } else {
-                fullContentHeight
+                (getScreenshotHeightDp() * density).toInt().coerceAtMost(fullContentHeight)
             }
-            Log.d(TAG, "Cropping: contentHeightDp=$capturedHeightDp, cropHeight=${cropHeight}px")
-            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, fullBitmap.width, cropHeight)
+            val cropWidth = (getScreenshotWidthDp() * density).toInt().coerceAtMost(fullBitmap.width)
+            Log.d(TAG, "Cropping: contentHeightDp=$capturedHeightDp, cropWidth=${cropWidth}px, cropHeight=${cropHeight}px")
+            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, cropWidth, cropHeight)
             fullBitmap.recycle()
             val imageView = ImageView(activity)
             imageView.setImageBitmap(cropped)
