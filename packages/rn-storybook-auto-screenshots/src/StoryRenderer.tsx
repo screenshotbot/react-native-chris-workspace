@@ -59,6 +59,13 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!loading && error && StorybookRegistry) {
+      // Story errored - signal "done, no height" to unblock the screenshot test poll
+      StorybookRegistry.setContentHeight(0);
+    }
+  }, [loading, error]);
+
+  useEffect(() => {
     async function renderStory() {
       try {
         if (!storybookView) {
@@ -122,7 +129,17 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
 
   return (
     <View style={styles.container}>
-      {storyContent}
+      <View
+        style={styles.storyContent}
+        onLayout={(e) => {
+          const height = e.nativeEvent.layout.height;
+          if (height > 0 && StorybookRegistry) {
+            StorybookRegistry.setContentHeight(height);
+          }
+        }}
+      >
+        {storyContent}
+      </View>
     </View>
   );
 }
@@ -155,9 +172,12 @@ export function getAllStories(): Array<{ id: string; title: string; name: string
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
     backgroundColor: '#FFFFFF',
+  },
+  storyContent: {
+    width: 360,
   },
   error: {
     color: 'red',

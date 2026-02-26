@@ -2,11 +2,15 @@ package com.rnstorybookautoscreenshots
 
 import android.Manifest
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.util.Log
+import android.widget.ImageView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -32,8 +36,10 @@ abstract class BaseStoryScreenshotTest {
 
     companion object {
         private const val TAG = "BaseStoryScreenshotTest"
-        private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
+        private const val DEFAULT_LOAD_TIMEOUT_MS = 10000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+        private const val DEFAULT_SCREENSHOT_WIDTH_DP = 360
+        private const val DEFAULT_SCREENSHOT_HEIGHT_DP = 640
 
         // Not a real story — bootstrap just needs RN to load and register all stories.
         // The StoryRenderer registers stories before attempting to look up the story name,
@@ -64,6 +70,19 @@ abstract class BaseStoryScreenshotTest {
      * Default is 10000ms.
      */
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
+
+    /**
+     * Override to set the screenshot viewport width in dp.
+     * Default is 360dp.
+     */
+    open fun getScreenshotWidthDp(): Int = DEFAULT_SCREENSHOT_WIDTH_DP
+
+    /**
+     * Override to set the fallback screenshot height in dp, used when the story
+     * does not report a content height (e.g. flex:1 full-screen stories).
+     * Default is 640dp.
+     */
+    open fun getScreenshotHeightDp(): Int = DEFAULT_SCREENSHOT_HEIGHT_DP
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -133,6 +152,8 @@ abstract class BaseStoryScreenshotTest {
         val storyName = storyInfo.toStoryName()
         Log.d(TAG, "Screenshotting: $storyName (id: ${storyInfo.id})")
 
+        StorybookRegistry.resetContentHeight()
+
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             getStoryRendererActivityClass()
@@ -142,23 +163,56 @@ abstract class BaseStoryScreenshotTest {
 
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
 
-        // Wait for React Native to load and render
-        Thread.sleep(getLoadTimeoutMs())
+        // Poll for React Native to render and report content height, up to the timeout
+        val deadline = System.currentTimeMillis() + getLoadTimeoutMs()
+        do {
+            Thread.sleep(100)
+        } while (StorybookRegistry.getContentHeightDp() < 0 && System.currentTimeMillis() < deadline)
+
+        // Read height on test thread before posting to UI thread, to avoid racing with onLayout
+        val capturedHeightDp = StorybookRegistry.getContentHeightDp()
+        Log.d(TAG, "Content height after wait: ${capturedHeightDp}dp")
 
         scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
+            val decorView = activity.window.decorView
 
-            // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
+            // rootWindowInsets gives the actual system bar pixel heights
+            val insets = decorView.rootWindowInsets
+            val topInset = insets?.systemWindowInsetTop ?: 0
+            val bottomInset = insets?.systemWindowInsetBottom ?: 0
+            Log.d(TAG, "rootWindowInsets: top=$topInset, bottom=$bottomInset, screen=${decorView.width}x${decorView.height}")
+
+            val density = activity.resources.displayMetrics.density
+
+            val fullBitmap = Bitmap.createBitmap(decorView.width, decorView.height, Bitmap.Config.ARGB_8888)
+            decorView.draw(Canvas(fullBitmap))
+
+            val fullContentHeight = fullBitmap.height - topInset - bottomInset
+            val cropHeight = if (capturedHeightDp > 0) {
+                (capturedHeightDp * density).toInt().coerceAtMost(fullContentHeight)
+            } else {
+                (getScreenshotHeightDp() * density).toInt().coerceAtMost(fullContentHeight)
+            }
+            val cropWidth = (getScreenshotWidthDp() * density).toInt().coerceAtMost(fullBitmap.width)
+            Log.d(TAG, "Cropping: contentHeightDp=$capturedHeightDp, cropWidth=${cropWidth}px, cropHeight=${cropHeight}px")
+            val cropped = Bitmap.createBitmap(fullBitmap, 0, topInset, cropWidth, cropHeight)
+            fullBitmap.recycle()
+            val imageView = ImageView(activity)
+            imageView.setImageBitmap(cropped)
+            imageView.scaleType = ImageView.ScaleType.FIT_XY
+
+            ViewHelpers.setupView(imageView)
+                .setExactWidthDp((cropped.width / density).toInt())
+                .setExactHeightDp((cropped.height / density).toInt())
+                .layout()
+
             val screenshotName = storyInfo.id.replace("--", "_")
-
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
-            Screenshot.snap(rootView)
+            Screenshot.snap(imageView)
                 .setName(screenshotName)
                 .record()
 
-            Log.d(TAG, "Screenshot captured: $screenshotName")
+            cropped.recycle()
+            Log.d(TAG, "Screenshot captured: $screenshotName (${cropped.width}x${cropped.height})")
         }
 
         scenario.close()
