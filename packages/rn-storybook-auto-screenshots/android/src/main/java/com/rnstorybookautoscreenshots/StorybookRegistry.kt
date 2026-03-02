@@ -8,6 +8,7 @@ import com.facebook.react.bridge.ReadableArray
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.CountDownLatch
 
 /**
  * Native module that receives the story list from Storybook JS side.
@@ -18,6 +19,14 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     companion object {
         private const val TAG = "StorybookRegistry"
         const val STORIES_FILE_NAME = "storybook_stories.json"
+
+        /**
+         * Signaled when registerStories() is called from JS.
+         * Set this before launching StoryRendererActivity for bootstrap,
+         * then await it to know exactly when stories are registered.
+         */
+        @Volatile
+        var storiesRegisteredSignal: CountDownLatch? = null
 
         /**
          * Read stories from the manifest file.
@@ -89,6 +98,8 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
                 externalFile.writeText(jsonString)
                 Log.d(TAG, "Wrote ${stories.length()} stories to ${externalFile.absolutePath}")
             }
+
+            storiesRegisteredSignal?.countDown()
 
         } catch (e: Exception) {
             Log.e(TAG, "Error registering stories", e)

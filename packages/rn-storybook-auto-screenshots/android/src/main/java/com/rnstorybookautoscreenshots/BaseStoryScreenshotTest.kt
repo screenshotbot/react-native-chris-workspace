@@ -11,6 +11,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Base screenshot test that automatically discovers and tests all Storybook stories.
@@ -33,7 +35,7 @@ abstract class BaseStoryScreenshotTest {
     companion object {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
-        private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+        private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 30000L
 
         // Not a real story — bootstrap just needs RN to load and register all stories.
         // The StoryRenderer registers stories before attempting to look up the story name,
@@ -171,6 +173,10 @@ abstract class BaseStoryScreenshotTest {
     private fun bootstrapManifest() {
         Log.d(TAG, "Launching StoryRenderer to generate manifest...")
 
+        // Set up the latch before launching so we don't miss the signal
+        val latch = CountDownLatch(1)
+        StorybookRegistry.storiesRegisteredSignal = latch
+
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             getStoryRendererActivityClass()
@@ -180,8 +186,8 @@ abstract class BaseStoryScreenshotTest {
 
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
 
-        // Wait for React Native to fully load and register stories
-        Thread.sleep(getBootstrapTimeoutMs())
+        // Wait until JS calls registerStories(), or until the timeout safety ceiling
+        latch.await(getBootstrapTimeoutMs(), TimeUnit.MILLISECONDS)
 
         scenario.close()
 
