@@ -98,7 +98,7 @@ jobs:
         run: |
           # Prebuild the binaries before requesting the emulator
           ./android/gradlew -p android :app:assembleDebugAndroidTest
-          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordDebug
+          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordDebugAndroidTestScreenshotTest
 
       - name: Upload screenshot baselines as artifacts
         uses: actions/upload-artifact@v4
