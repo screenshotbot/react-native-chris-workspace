@@ -67,15 +67,17 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
           return;
         }
 
+        // Register all stories with native module for test discovery.
+        // _storyIndex is set synchronously by Storybook's start(), so this
+        // doesn't need to wait for createPreparedStoryMapping().
+        registerStoriesWithNative();
+
         const storyId = storyNameToId(storyName);
 
         // Wait for Storybook to be ready and prepare story mappings
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
           await storybookView.createPreparedStoryMapping();
         }
-
-        // Register all stories with native module for test discovery
-        registerStoriesWithNative();
 
         const preparedStory = storybookView._idToPrepared[storyId];
 
