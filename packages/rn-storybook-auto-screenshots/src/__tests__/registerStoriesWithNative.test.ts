@@ -79,20 +79,19 @@ describe('registerStoriesWithNative', () => {
 
   it('logs a warning and does not throw when registerStories throws', () => {
     const { configure, registerStoriesWithNative } = loadFreshModule();
-    configure({
-      _storyIndex: {
-        entries: {
-          'button--primary': { title: 'Button', name: 'Primary' },
-        },
-      },
-    });
     mockRegisterStories.mockImplementation(() => {
       throw new Error('native module error');
     });
 
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(() => registerStoriesWithNative()).not.toThrow();
+    expect(() => configure({
+      _storyIndex: {
+        entries: {
+          'button--primary': { title: 'Button', name: 'Primary' },
+        },
+      },
+    })).not.toThrow();
     expect(warnSpy).toHaveBeenCalled();
 
     warnSpy.mockRestore();
