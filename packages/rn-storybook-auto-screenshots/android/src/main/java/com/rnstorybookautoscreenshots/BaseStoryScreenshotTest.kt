@@ -1,12 +1,16 @@
 package com.rnstorybookautoscreenshots
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
+import android.view.WindowManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -151,9 +155,23 @@ abstract class BaseStoryScreenshotTest {
             // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
+            // Get exact screen dimensions so ViewHelpers can layout the view properly
+            val windowManager = activity.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val (width, height) = if (Build.VERSION.SDK_INT >= 30) {
+                val bounds = windowManager.currentWindowMetrics.bounds
+                Pair(bounds.width(), bounds.height())
+            } else {
+                Pair(1080, 1920)
+            }
+
+            // Force a measure/layout pass at the exact screen size before capturing.
+            // Without this the view may not be properly laid out, producing blank or
+            // incorrectly-sized screenshots.
+            ViewHelpers.setupView(rootView)
+                .setExactWidthPx(width)
+                .setExactHeightPx(height)
+                .layout()
+
             Screenshot.snap(rootView)
                 .setName(screenshotName)
                 .record()
