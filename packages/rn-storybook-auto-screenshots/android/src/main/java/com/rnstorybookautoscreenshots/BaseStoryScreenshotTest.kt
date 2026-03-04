@@ -7,6 +7,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -151,9 +152,14 @@ abstract class BaseStoryScreenshotTest {
             // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
+            // Force a measure/layout pass at the view's actual current dimensions before
+            // capturing. This ensures the view is drawn before snap() is called, preventing
+            // blank screenshots, while preserving the layout the system already applied.
+            ViewHelpers.setupView(rootView)
+                .setExactWidthPx(rootView.width)
+                .setExactHeightPx(rootView.height)
+                .layout()
+
             Screenshot.snap(rootView)
                 .setName(screenshotName)
                 .record()
