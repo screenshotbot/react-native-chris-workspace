@@ -41,7 +41,7 @@ export const Initial: StoryObj<typeof TimerFeature> = {
 export const Running: StoryObj<typeof TimerFeature> = {
   render: () => (
     <TimerFeature
-      seconds={15}
+      seconds={19}
       isRunning={true}
       setSeconds={() => {}}
       setIsRunning={() => {}}
