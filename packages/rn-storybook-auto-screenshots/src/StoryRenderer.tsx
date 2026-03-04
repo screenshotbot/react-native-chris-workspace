@@ -18,6 +18,10 @@ let storybookView: any = null;
  */
 export function configure(view: any) {
   storybookView = view;
+  // Register stories immediately at bundle-load time, while _storyIndex is
+  // freshly populated by start(). This is more reliable than waiting for a
+  // component useEffect to fire.
+  registerStoriesWithNative();
 }
 
 type StoryRendererProps = {
@@ -67,17 +71,16 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
           return;
         }
 
-        // Register all stories with native module for test discovery.
-        // _storyIndex is set synchronously by Storybook's start(), so this
-        // doesn't need to wait for createPreparedStoryMapping().
-        registerStoriesWithNative();
-
         const storyId = storyNameToId(storyName);
 
         // Wait for Storybook to be ready and prepare story mappings
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
           await storybookView.createPreparedStoryMapping();
         }
+
+        // Register all stories with native module for test discovery.
+        // Done after createPreparedStoryMapping() to ensure _storyIndex is populated.
+        registerStoriesWithNative();
 
         const preparedStory = storybookView._idToPrepared[storyId];
 
