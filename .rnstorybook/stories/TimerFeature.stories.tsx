@@ -36,23 +36,17 @@ export const Initial: StoryObj<typeof TimerFeature> = {
   render: () => <InitialStory />,
 };
 
-// Timer running
-const RunningStory = () => {
-  const [seconds, setSeconds] = useState(15);
-  const [isRunning, setIsRunning] = useState(true);
-
-  return (
-    <TimerFeature
-      seconds={seconds}
-      setSeconds={setSeconds}
-      isRunning={isRunning}
-      setIsRunning={setIsRunning}
-    />
-  );
-};
-
+// Timer running — frozen at 19s so the screenshot is deterministic.
+// Using no-op setters prevents the interval from mutating state.
 export const Running: StoryObj<typeof TimerFeature> = {
-  render: () => <RunningStory />,
+  render: () => (
+    <TimerFeature
+      seconds={19}
+      isRunning={true}
+      setSeconds={() => {}}
+      setIsRunning={() => {}}
+    />
+  ),
 };
 
 // Timer paused with some time
