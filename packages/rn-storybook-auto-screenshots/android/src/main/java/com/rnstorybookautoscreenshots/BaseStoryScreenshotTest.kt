@@ -1,11 +1,8 @@
 package com.rnstorybookautoscreenshots
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
-import android.view.WindowManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.rule.GrantPermissionRule
@@ -38,6 +35,8 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+        private const val DEFAULT_SCREENSHOT_WIDTH_DP = 360
+        private const val DEFAULT_SCREENSHOT_HEIGHT_DP = 640
 
         // Not a real story — bootstrap just needs RN to load and register all stories.
         // The StoryRenderer registers stories before attempting to look up the story name,
@@ -68,6 +67,18 @@ abstract class BaseStoryScreenshotTest {
      * Default is 10000ms.
      */
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
+
+    /**
+     * Override to set the screenshot viewport width in dp.
+     * Default is 360dp.
+     */
+    open fun getScreenshotWidthDp(): Int = DEFAULT_SCREENSHOT_WIDTH_DP
+
+    /**
+     * Override to set the screenshot viewport height in dp.
+     * Default is 640dp.
+     */
+    open fun getScreenshotHeightDp(): Int = DEFAULT_SCREENSHOT_HEIGHT_DP
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -155,21 +166,12 @@ abstract class BaseStoryScreenshotTest {
             // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
             val screenshotName = storyInfo.id.replace("--", "_")
 
-            // Get exact screen dimensions so ViewHelpers can layout the view properly
-            val windowManager = activity.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            val (width, height) = if (Build.VERSION.SDK_INT >= 30) {
-                val bounds = windowManager.currentWindowMetrics.bounds
-                Pair(bounds.width(), bounds.height())
-            } else {
-                Pair(1080, 1920)
-            }
-
-            // Force a measure/layout pass at the exact screen size before capturing.
+            // Force a measure/layout pass at the configured dp dimensions before capturing.
             // Without this the view may not be properly laid out, producing blank or
             // incorrectly-sized screenshots.
             ViewHelpers.setupView(rootView)
-                .setExactWidthPx(width)
-                .setExactHeightPx(height)
+                .setExactWidthDp(getScreenshotWidthDp())
+                .setExactHeightDp(getScreenshotHeightDp())
                 .layout()
 
             Screenshot.snap(rootView)
