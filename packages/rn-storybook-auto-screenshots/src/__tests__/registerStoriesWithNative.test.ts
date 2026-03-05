@@ -60,6 +60,16 @@ describe('registerStoriesWithNative', () => {
     expect(mockRegisterStories).not.toHaveBeenCalled();
   });
 
+  it('warns when called without configure()', () => {
+    const { registerStoriesWithNative } = loadFreshModule();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    registerStoriesWithNative();
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('configure()'));
+    warnSpy.mockRestore();
+  });
+
   it('only registers once even if called multiple times', () => {
     const { configure, registerStoriesWithNative } = loadFreshModule();
     configure({
