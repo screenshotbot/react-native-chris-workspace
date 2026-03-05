@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Switch, StyleSheet } from 'react-native';
+import { View, Text, Switch, StyleSheet, Image } from 'react-native';
 import { useTheme } from './Theme';
 
 type SwitchFeatureProps = {
@@ -31,8 +31,14 @@ export default function SwitchFeature({ isEnabled, setIsEnabled }: SwitchFeature
         {isEnabled ? '' : 'False'}
       </Text>
 
+      {/* Conditional image */}
       {isEnabled && (
-        <View style={[styles.imagePlaceholder, { backgroundColor: colors.primary }]} />
+        <Image
+          source={{
+            uri: 'https://preview.redd.it/morgan-freeman-true-3700-x-3700-v0-g0fa2kf347391.png?width=320&crop=smart&auto=webp&s=052771a34f448167b4c62c696dcd321b9e15cccb',
+          }}
+          style={styles.image}
+        />
       )}
     </View>
   );
@@ -54,10 +60,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
   },
-  imagePlaceholder: {
+  image: {
     marginTop: 20,
     width: 200,
     height: 200,
+    resizeMode: 'contain',
     borderRadius: 10,
   },
 });
