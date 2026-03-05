@@ -86,7 +86,7 @@ abstract class BaseStoryScreenshotTest {
         // Bootstrap manifest if it doesn't exist
         if (!manifestFile.exists()) {
             Log.d(TAG, "Manifest not found, bootstrapping...")
-            bootstrapManifest()
+            bootstrapManifest(manifestFile)
         }
 
         assertTrue(
@@ -167,8 +167,10 @@ abstract class BaseStoryScreenshotTest {
     /**
      * Bootstraps the story manifest by launching StoryRendererActivity.
      * This allows React Native to initialize and register all stories.
+     * Waits until the manifest file appears (written by JS once RN has loaded),
+     * rather than sleeping for a fixed duration.
      */
-    private fun bootstrapManifest() {
+    private fun bootstrapManifest(manifestFile: File) {
         Log.d(TAG, "Launching StoryRenderer to generate manifest...")
 
         val intent = Intent(
@@ -180,8 +182,13 @@ abstract class BaseStoryScreenshotTest {
 
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
 
-        // Wait for React Native to fully load and register stories
-        Thread.sleep(getBootstrapTimeoutMs())
+        // Poll for the manifest file instead of sleeping for a fixed duration.
+        // The file is written by JS as soon as RN has loaded and registered all stories,
+        // so its appearance is a direct signal that RN is ready.
+        val deadline = System.currentTimeMillis() + getBootstrapTimeoutMs()
+        while (!manifestFile.exists() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100)
+        }
 
         scenario.close()
 
