@@ -89,11 +89,6 @@ abstract class BaseStoryScreenshotTest {
             bootstrapManifest(manifestFile)
         }
 
-        assertTrue(
-            "Stories manifest not found at ${manifestFile.absolutePath}. Bootstrap failed.",
-            manifestFile.exists()
-        )
-
         val allStories = StorybookRegistry.getStoriesFromFile(externalDir!!)
         val stories = allStories.filter { shouldScreenshotStory(it) }
 
@@ -167,8 +162,6 @@ abstract class BaseStoryScreenshotTest {
     /**
      * Bootstraps the story manifest by launching StoryRendererActivity.
      * This allows React Native to initialize and register all stories.
-     * Waits until the manifest file appears (written by JS once RN has loaded),
-     * rather than sleeping for a fixed duration.
      */
     private fun bootstrapManifest(manifestFile: File) {
         Log.d(TAG, "Launching StoryRenderer to generate manifest...")
@@ -181,17 +174,28 @@ abstract class BaseStoryScreenshotTest {
         }
 
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
+        waitForManifestFile(manifestFile)
+        scenario.close()
 
-        // Poll for the manifest file instead of sleeping for a fixed duration.
-        // The file is written by JS as soon as RN has loaded and registered all stories,
-        // so its appearance is a direct signal that RN is ready.
+        Log.d(TAG, "Bootstrap complete")
+    }
+
+    /**
+     * Polls for the manifest file until it appears or the timeout elapses.
+     * The file is written by JS as soon as RN has loaded and registered all stories,
+     * so its appearance is a direct signal that RN is ready.
+     * Throws if the file has not appeared by the deadline.
+     */
+    private fun waitForManifestFile(manifestFile: File) {
         val deadline = System.currentTimeMillis() + getBootstrapTimeoutMs()
         while (!manifestFile.exists() && System.currentTimeMillis() < deadline) {
             Thread.sleep(100)
         }
-
-        scenario.close()
-
-        Log.d(TAG, "Bootstrap complete")
+        if (!manifestFile.exists()) {
+            throw IllegalStateException(
+                "Manifest file did not appear within ${getBootstrapTimeoutMs()}ms. " +
+                "Make sure configure(view) is called in your app and the StoryRenderer is registered."
+            )
+        }
     }
 }
