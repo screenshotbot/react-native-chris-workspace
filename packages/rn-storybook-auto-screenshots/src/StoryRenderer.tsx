@@ -58,6 +58,14 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Notify native when the story has finished rendering (or errored).
+  // This runs after React commits the update, so the native views are up to date.
+  useEffect(() => {
+    if (!loading) {
+      StorybookRegistry.notifyStoryReady();
+    }
+  }, [loading]);
+
   useEffect(() => {
     async function renderStory() {
       try {
