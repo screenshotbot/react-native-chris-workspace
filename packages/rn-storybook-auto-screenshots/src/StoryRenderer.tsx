@@ -62,7 +62,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   // This runs after React commits the update, so the native views are up to date.
   useEffect(() => {
     if (!loading) {
-      StorybookRegistry?.notifyStoryReady?.();
+      StorybookRegistry.notifyStoryReady();
     }
   }, [loading]);
 
