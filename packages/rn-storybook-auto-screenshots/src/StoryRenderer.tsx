@@ -42,22 +42,11 @@ export function registerStoriesWithNative() {
     );
   }
 
-  try {
-    if (!storybookView) {
-      console.warn(
-        'rn-storybook-auto-screenshots: configure() was not called before registerStoriesWithNative(). ' +
-        'Call configure(view) during app initialization so stories can be discovered.'
-      );
-      return;
-    }
-    const stories = getAllStories();
-    if (stories.length > 0) {
-      StorybookRegistry.registerStories(stories);
-      storiesRegistered = true;
-      console.log(`Registered ${stories.length} stories with native module`);
-    }
-  } catch (e) {
-    console.warn('Failed to register stories with native module:', e);
+  const stories = getAllStories();
+  if (stories.length > 0) {
+    StorybookRegistry.registerStories(stories);
+    storiesRegistered = true;
+    console.log(`Registered ${stories.length} stories with native module`);
   }
 }
 
