@@ -52,12 +52,10 @@ describe('registerStoriesWithNative', () => {
     expect(mockRegisterStories).not.toHaveBeenCalled();
   });
 
-  it('does not call registerStories when storybookView is not configured', () => {
+  it('throws when called without configure()', () => {
     const { registerStoriesWithNative } = loadFreshModule();
 
-    registerStoriesWithNative();
-
-    expect(mockRegisterStories).not.toHaveBeenCalled();
+    expect(() => registerStoriesWithNative()).toThrow('configure()');
   });
 
   it('only registers once even if called multiple times', () => {

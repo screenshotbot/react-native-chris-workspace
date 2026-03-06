@@ -35,6 +35,13 @@ export function registerStoriesWithNative() {
     return;
   }
 
+  if (!storybookView) {
+    throw new Error(
+      'rn-storybook-auto-screenshots: configure() was not called before registerStoriesWithNative(). ' +
+      'Call configure(view) during app initialization so stories can be discovered.'
+    );
+  }
+
   try {
     const stories = getAllStories();
     if (stories.length > 0) {
