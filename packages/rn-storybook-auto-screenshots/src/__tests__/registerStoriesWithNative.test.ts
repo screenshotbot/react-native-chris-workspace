@@ -75,7 +75,7 @@ describe('registerStoriesWithNative', () => {
     expect(mockRegisterStories).toHaveBeenCalledTimes(1);
   });
 
-  it('logs a warning and does not throw when registerStories throws', () => {
+  it('throws when registerStories throws', () => {
     const { configure, registerStoriesWithNative } = loadFreshModule();
     configure({
       _storyIndex: {
@@ -88,11 +88,6 @@ describe('registerStoriesWithNative', () => {
       throw new Error('native module error');
     });
 
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
-    expect(() => registerStoriesWithNative()).not.toThrow();
-    expect(warnSpy).toHaveBeenCalled();
-
-    warnSpy.mockRestore();
+    expect(() => registerStoriesWithNative()).toThrow('native module error');
   });
 });
