@@ -26,7 +26,6 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         /**
          * Call before launching a story activity. Creates a fresh latch to wait on.
          */
-        @JvmStatic
         fun prepareForNextStory() {
             storyReadyLatch = CountDownLatch(1)
         }
@@ -34,7 +33,6 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         /**
          * Blocks until JS signals the story is rendered, or the timeout elapses.
          */
-        @JvmStatic
         fun awaitStoryReady(timeoutMs: Long) {
             storyReadyLatch?.await(timeoutMs, TimeUnit.MILLISECONDS)
         }
@@ -43,7 +41,6 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
          * Read stories from the manifest file.
          * Used by screenshot tests to get list of all stories.
          */
-        @JvmStatic
         fun getStoriesFromFile(storageDir: File): List<StoryInfo> {
             val file = File(storageDir, STORIES_FILE_NAME)
             if (!file.exists()) {
