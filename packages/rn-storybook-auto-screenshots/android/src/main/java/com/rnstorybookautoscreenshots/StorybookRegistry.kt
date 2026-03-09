@@ -8,6 +8,8 @@ import com.facebook.react.bridge.ReadableArray
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Native module that receives the story list from Storybook JS side.
@@ -19,11 +21,26 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         private const val TAG = "StorybookRegistry"
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
+        @Volatile private var storyReadyLatch: CountDownLatch? = null
+
+        /**
+         * Call before launching a story activity. Creates a fresh latch to wait on.
+         */
+        fun prepareForNextStory() {
+            storyReadyLatch = CountDownLatch(1)
+        }
+
+        /**
+         * Blocks until JS signals the story is rendered, or the timeout elapses.
+         */
+        fun awaitStoryReady(timeoutMs: Long) {
+            storyReadyLatch?.await(timeoutMs, TimeUnit.MILLISECONDS)
+        }
+
         /**
          * Read stories from the manifest file.
          * Used by screenshot tests to get list of all stories.
          */
-        @JvmStatic
         fun getStoriesFromFile(storageDir: File): List<StoryInfo> {
             val file = File(storageDir, STORIES_FILE_NAME)
             if (!file.exists()) {
@@ -50,6 +67,15 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     }
 
     override fun getName(): String = "StorybookRegistry"
+
+    /**
+     * Called from JS when a story has finished rendering (or errored).
+     * Releases the latch that screenshotStory() is waiting on.
+     */
+    @ReactMethod
+    fun notifyStoryReady() {
+        storyReadyLatch?.countDown()
+    }
 
     /**
      * Called from JS to register the list of available stories.

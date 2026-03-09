@@ -35,6 +35,13 @@ export function registerStoriesWithNative() {
     return;
   }
 
+  if (!storybookView) {
+    throw new Error(
+      'rn-storybook-auto-screenshots: configure() was not called before registerStoriesWithNative(). ' +
+      'Call configure(view) during app initialization so stories can be discovered.'
+    );
+  }
+
   try {
     const stories = getAllStories();
     if (stories.length > 0) {
@@ -57,6 +64,14 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Notify native when the story has finished rendering (or errored).
+  // This runs after React commits the update, so the native views are up to date.
+  useEffect(() => {
+    if (!loading) {
+      StorybookRegistry.notifyStoryReady();
+    }
+  }, [loading]);
 
   useEffect(() => {
     async function renderStory() {
