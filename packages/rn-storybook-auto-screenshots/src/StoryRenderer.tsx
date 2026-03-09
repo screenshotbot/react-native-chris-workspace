@@ -42,15 +42,11 @@ export function registerStoriesWithNative() {
     );
   }
 
-  try {
-    const stories = getAllStories();
-    if (stories.length > 0) {
-      StorybookRegistry.registerStories(stories);
-      storiesRegistered = true;
-      console.log(`Registered ${stories.length} stories with native module`);
-    }
-  } catch (e) {
-    console.warn('Failed to register stories with native module:', e);
+  const stories = getAllStories();
+  if (stories.length > 0) {
+    StorybookRegistry.registerStories(stories);
+    storiesRegistered = true;
+    console.log(`Registered ${stories.length} stories with native module`);
   }
 }
 
