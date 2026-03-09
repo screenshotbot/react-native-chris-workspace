@@ -135,10 +135,11 @@ abstract class BaseStoryScreenshotTest {
             putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, storyName)
         }
 
+        StorybookRegistry.prepareForNextStory()
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
 
-        // Wait for React Native to load and render
-        Thread.sleep(getLoadTimeoutMs())
+        // Wait for JS to signal the story has finished rendering, up to the timeout.
+        StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
             val rootView = activity.window.decorView.rootView
