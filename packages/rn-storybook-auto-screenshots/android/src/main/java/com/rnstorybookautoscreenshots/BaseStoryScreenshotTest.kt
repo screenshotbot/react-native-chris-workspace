@@ -48,9 +48,11 @@ abstract class BaseStoryScreenshotTest {
     )
 
     /**
-     * Override this to provide your app's StoryRendererActivity class.
+     * Override to provide a custom StoryRendererActivity class.
+     * Defaults to BaseStoryRendererActivity, which is registered in the package manifest.
      */
-    abstract fun getStoryRendererActivityClass(): Class<out BaseStoryRendererActivity>
+    open fun getStoryRendererActivityClass(): Class<out BaseStoryRendererActivity> =
+        BaseStoryRendererActivity::class.java
 
     /**
      * Override to customize the React Native load timeout per story.
