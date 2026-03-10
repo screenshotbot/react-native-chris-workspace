@@ -10,11 +10,13 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
  * Native module that receives the story list from Storybook JS side.
  * Stories are written to a file that screenshot tests can read.
  */
+
 class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     companion object {
@@ -22,6 +24,12 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
         @Volatile private var storyReadyLatch: CountDownLatch? = null
+        @Volatile private var reactCtx: ReactApplicationContext? = null
+
+        fun loadStory(storyName: String) {
+            reactCtx?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                ?.emit("loadStory", storyName)
+        }
 
         /**
          * Call before launching a story activity. Creates a fresh latch to wait on.
@@ -64,6 +72,10 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
                 emptyList()
             }
         }
+    }
+    
+    init {
+        reactCtx = reactContext
     }
 
     override fun getName(): String = "StorybookRegistry"
