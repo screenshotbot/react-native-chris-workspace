@@ -24,12 +24,6 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
         @Volatile private var storyReadyLatch: CountDownLatch? = null
-        @Volatile private var reactCtx: ReactApplicationContext? = null
-
-        fun loadStory(storyName: String) {
-            reactCtx?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                ?.emit("loadStory", storyName)
-        }
 
         /**
          * Call before launching a story activity. Creates a fresh latch to wait on.
@@ -73,10 +67,6 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
             }
         }
     }
-    
-    init {
-        reactCtx = reactContext
-    }
 
     override fun getName(): String = "StorybookRegistry"
 
@@ -88,7 +78,11 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     fun notifyStoryReady() {
         storyReadyLatch?.countDown()
     }
-
+    fun loadStory(storyName: String) {
+        reactApplicationContext
+           .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+          ?.emit("loadStory", storyName)
+   }
     /**
      * Called from JS to register the list of available stories.
      * Writes to external files directory for test access.
