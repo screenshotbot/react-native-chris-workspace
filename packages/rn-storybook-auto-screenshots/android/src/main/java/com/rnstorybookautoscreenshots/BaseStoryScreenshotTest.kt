@@ -115,7 +115,7 @@ abstract class BaseStoryScreenshotTest {
                 Log.d(TAG, "Screenshotting: $storyName (id: ${story.id})")
 
                 StorybookRegistry.prepareForNextStory()
-                StorybookRegistry.loadStory(storyName)
+                scenario.onActivity { activity -> activity.loadStory(storyName) }
                 StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
 
                 scenario.onActivity { activity ->
