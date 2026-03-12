@@ -32,6 +32,12 @@ open class BaseStoryRendererActivity : ReactActivity() {
     /**
      * Returns the instance of the ReactActivityDelegate with custom launch options.
      */
+    fun loadStory(storyName: String) {
+        reactInstanceManager?.currentReactContext
+            ?.getNativeModule(StorybookRegistry::class.java)
+            ?.loadStory(storyName)
+    }
+
     override fun createReactActivityDelegate(): ReactActivityDelegate {
         return object : DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled) {
             override fun getLaunchOptions(): Bundle? {
