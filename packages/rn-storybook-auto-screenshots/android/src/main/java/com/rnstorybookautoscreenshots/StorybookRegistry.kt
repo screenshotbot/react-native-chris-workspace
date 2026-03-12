@@ -78,11 +78,14 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     fun notifyStoryReady() {
         storyReadyLatch?.countDown()
     }
+
     fun loadStory(storyName: String) {
         reactApplicationContext
-           .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-          ?.emit("loadStory", storyName)
-   }
+            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+            ?.emit("loadStory", storyName)
+    }
+
+
     /**
      * Called from JS to register the list of available stories.
      * Writes to external files directory for test access.
