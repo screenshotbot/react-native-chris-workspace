@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
 import org.junit.Assert.assertTrue
@@ -117,6 +118,7 @@ abstract class BaseStoryScreenshotTest {
                 StorybookRegistry.prepareForNextStory()
                 scenario.onActivity { activity -> activity.loadStory(storyName) }
                 StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync()
 
                 scenario.onActivity { activity ->
                     val screenshotName = story.id.replace("--", "_")
