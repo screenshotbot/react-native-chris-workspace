@@ -72,10 +72,13 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   }, []);
 
   // Notify native when the story has finished rendering (or errored).
-  // This runs after React commits the update, so the native views are up to date.
+  // requestAnimationFrame defers until after the next frame is painted,
+  // ensuring native view mutations are flushed before the screenshot is taken.
   useEffect(() => {
     if (!loading) {
-      StorybookRegistry.notifyStoryReady();
+      requestAnimationFrame(() => {
+        StorybookRegistry.notifyStoryReady();
+      });
     }
   }, [loading]);
 
