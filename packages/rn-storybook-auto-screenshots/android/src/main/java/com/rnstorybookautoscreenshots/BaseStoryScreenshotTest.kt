@@ -3,6 +3,7 @@ package com.rnstorybookautoscreenshots
 import android.Manifest
 import android.content.Intent
 import android.util.Log
+import android.view.ViewTreeObserver
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -12,6 +13,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Base screenshot test that automatically discovers and tests all Storybook stories.
@@ -119,6 +122,7 @@ abstract class BaseStoryScreenshotTest {
                 scenario.onActivity { activity -> activity.loadStory(storyName) }
                 StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
                 InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                waitForNextDraw(scenario)
 
                 scenario.onActivity { activity ->
                     val screenshotName = story.id.replace("--", "_")
@@ -146,6 +150,30 @@ abstract class BaseStoryScreenshotTest {
             "Some stories failed to screenshot: ${failures.joinToString(", ")}",
             failures.isEmpty()
         )
+    }
+
+    /**
+     * Waits for the next draw pass on the decor view.
+     *
+     * waitForIdleSync() drains the main thread message queue but view drawing
+     * is triggered by VSYNC via Choreographer, not the message queue. This
+     * method waits for an OnDrawListener callback, which fires after the next
+     * frame is actually drawn — ensuring the screenshot captures painted content.
+     */
+    private fun waitForNextDraw(scenario: ActivityScenario<BaseStoryRendererActivity>) {
+        val latch = CountDownLatch(1)
+        scenario.onActivity { activity ->
+            val decorView = activity.window.decorView
+            decorView.viewTreeObserver.addOnDrawListener(object : ViewTreeObserver.OnDrawListener {
+                override fun onDraw() {
+                    latch.countDown()
+                    decorView.post {
+                        decorView.viewTreeObserver.removeOnDrawListener(this)
+                    }
+                }
+            })
+        }
+        latch.await(2000, TimeUnit.MILLISECONDS)
     }
 
     /**
