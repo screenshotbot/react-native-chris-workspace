@@ -1,12 +1,15 @@
 package com.rnstorybookautoscreenshots
 
 import android.Manifest
-import android.content.Intent
+import android.os.Bundle
 import android.util.Log
-import androidx.test.core.app.ActivityScenario
-import androidx.test.core.app.ApplicationProvider
+import android.view.View
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
+import com.facebook.react.ReactApplication
+import com.facebook.react.ReactRootView
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -19,9 +22,7 @@ import java.io.File
  *
  * ```kotlin
  * @RunWith(AndroidJUnit4::class)
- * class StoryScreenshotTest : BaseStoryScreenshotTest() {
- *     override fun getStoryRendererActivityClass() = StoryRendererActivity::class.java
- * }
+ * class StoryScreenshotTest : BaseStoryScreenshotTest()
  * ```
  *
  * This test automatically bootstraps the story manifest if it doesn't exist,
@@ -34,11 +35,10 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
-
-        // Not a real story — bootstrap just needs RN to load and register all stories.
-        // The StoryRenderer registers stories before attempting to look up the story name,
-        // so any string works here.
         private const val BOOTSTRAP_STORY_NAME = "__bootstrap__"
+
+        private const val SCREEN_WIDTH_PX = 1080
+        private const val SCREEN_HEIGHT_PX = 1920
     }
 
     @get:Rule
@@ -48,11 +48,10 @@ abstract class BaseStoryScreenshotTest {
     )
 
     /**
-     * Override to provide a custom StoryRendererActivity class.
-     * Defaults to BaseStoryRendererActivity, which is registered in the package manifest.
+     * Override to customize the React Native component name for story rendering.
+     * Default is "StoryRenderer".
      */
-    open fun getStoryRendererActivityClass(): Class<out BaseStoryRendererActivity> =
-        BaseStoryRendererActivity::class.java
+    open fun getMainComponentName(): String = "StoryRenderer"
 
     /**
      * Override to customize the React Native load timeout per story.
@@ -62,7 +61,6 @@ abstract class BaseStoryScreenshotTest {
 
     /**
      * Override to customize the timeout for manifest bootstrap.
-     * This is used when the manifest doesn't exist and needs to be generated.
      * Default is 10000ms.
      */
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
@@ -81,11 +79,10 @@ abstract class BaseStoryScreenshotTest {
      */
     @Test
     fun screenshotAllStories() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         val externalDir = context.getExternalFilesDir("screenshots")
         val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
-        // Bootstrap manifest if it doesn't exist
         if (!manifestFile.exists()) {
             Log.d(TAG, "Manifest not found, bootstrapping...")
             bootstrapManifest(manifestFile)
@@ -95,7 +92,6 @@ abstract class BaseStoryScreenshotTest {
         val stories = allStories.filter { shouldScreenshotStory(it) }
 
         Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
-
         assertTrue("No stories found in manifest", stories.isNotEmpty())
 
         var successCount = 0
@@ -115,7 +111,6 @@ abstract class BaseStoryScreenshotTest {
         }
 
         Log.d(TAG, "Screenshot results: $successCount passed, $failureCount failed")
-
         if (failures.isNotEmpty()) {
             Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
         }
@@ -130,65 +125,78 @@ abstract class BaseStoryScreenshotTest {
         val storyName = storyInfo.toStoryName()
         Log.d(TAG, "Screenshotting: $storyName (id: ${storyInfo.id})")
 
-        val intent = Intent(
-            ApplicationProvider.getApplicationContext(),
-            getStoryRendererActivityClass()
-        ).apply {
-            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, storyName)
-        }
-
         StorybookRegistry.prepareForNextStory()
-        val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
-
-        // Wait for JS to signal the story has finished rendering, up to the timeout.
-        StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-
-        scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
-
-            // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
+        renderStory(storyName) { view ->
+            StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
             val screenshotName = storyInfo.id.replace("--", "_")
-
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
-            Screenshot.snap(rootView)
-                .setName(screenshotName)
-                .record()
-
+            Screenshot.snap(view).setName(screenshotName).record()
             Log.d(TAG, "Screenshot captured: $screenshotName")
         }
-
-        scenario.close()
     }
 
-    /**
-     * Bootstraps the story manifest by launching StoryRendererActivity.
-     * This allows React Native to initialize and register all stories.
-     */
     private fun bootstrapManifest(manifestFile: File) {
         Log.d(TAG, "Launching StoryRenderer to generate manifest...")
-
-        val intent = Intent(
-            ApplicationProvider.getApplicationContext(),
-            getStoryRendererActivityClass()
-        ).apply {
-            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, BOOTSTRAP_STORY_NAME)
+        renderStory(BOOTSTRAP_STORY_NAME) {
+            waitForManifestFile(manifestFile)
         }
-
-        val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
-        waitForManifestFile(manifestFile)
-        scenario.close()
-
         Log.d(TAG, "Bootstrap complete")
     }
 
     /**
-     * Polls for the manifest file until it appears or the timeout elapses.
-     * The file is written by JS as soon as RN has loaded and registered all stories,
-     * so its appearance is a direct signal that RN is ready.
-     * Throws if the file has not appeared by the deadline.
+     * Renders the given story name into a view, calls [onRendered] with that view,
+     * then tears down. Handles both old arch (ReactRootView) and new arch (ReactSurface).
      */
+    private fun renderStory(storyName: String, onRendered: (view: View) -> Unit) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val app = instrumentation.targetContext.applicationContext as ReactApplication
+        val props = Bundle().apply { putString("storyName", storyName) }
+
+        val reactHost = app.reactHost
+        if (reactHost != null) {
+            // New arch (bridgeless): ReactHost + ReactSurface
+            val surface = reactHost.createSurface(
+                instrumentation.targetContext,
+                getMainComponentName(),
+                props
+            )
+            instrumentation.runOnMainSync { surface.start() }
+
+            val view = surface.view
+                ?: throw IllegalStateException("ReactSurface returned a null view")
+
+            ViewHelpers.setupView(view)
+                .setExactWidthPx(SCREEN_WIDTH_PX)
+                .setExactHeightPx(SCREEN_HEIGHT_PX)
+                .layout()
+
+            onRendered(view)
+
+            instrumentation.runOnMainSync { surface.stop() }
+        } else {
+            // Old arch: ReactRootView + ReactInstanceManager
+            val context = instrumentation.targetContext
+            val rootView = ReactRootView(context)
+
+            @Suppress("DEPRECATION")
+            val reactInstanceManager = app.reactNativeHost.reactInstanceManager
+
+            // startReactApplication asserts UI thread
+            instrumentation.runOnMainSync {
+                rootView.startReactApplication(reactInstanceManager, getMainComponentName(), props)
+            }
+
+            // ViewHelpers.layout() triggers measure() → onMeasure() → attachToReactInstanceManager()
+            ViewHelpers.setupView(rootView)
+                .setExactWidthPx(SCREEN_WIDTH_PX)
+                .setExactHeightPx(SCREEN_HEIGHT_PX)
+                .layout()
+
+            onRendered(rootView)
+
+            instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+        }
+    }
+
     private fun waitForManifestFile(manifestFile: File) {
         val deadline = System.currentTimeMillis() + getBootstrapTimeoutMs()
         while (!manifestFile.exists() && System.currentTimeMillis() < deadline) {
