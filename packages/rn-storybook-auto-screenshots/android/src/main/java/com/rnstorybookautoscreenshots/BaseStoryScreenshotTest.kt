@@ -3,14 +3,18 @@ package com.rnstorybookautoscreenshots
 import android.Manifest
 import android.content.Intent
 import android.util.Log
+import android.view.ViewTreeObserver
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Base screenshot test that automatically discovers and tests all Storybook stories.
@@ -85,36 +89,58 @@ abstract class BaseStoryScreenshotTest {
         val externalDir = context.getExternalFilesDir("screenshots")
         val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
-        // Bootstrap manifest if it doesn't exist
+        val intent = Intent(
+            ApplicationProvider.getApplicationContext(),
+            getStoryRendererActivityClass()
+        ).apply {
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, BOOTSTRAP_STORY_NAME)
+        }
+
+        // Launch once — RN initializes and registers all stories
+        StorybookRegistry.prepareForNextStory()
+        val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
+        StorybookRegistry.awaitStoryReady(getBootstrapTimeoutMs())
+
         if (!manifestFile.exists()) {
-            Log.d(TAG, "Manifest not found, bootstrapping...")
-            bootstrapManifest(manifestFile)
+            waitForManifestFile(manifestFile)
         }
 
         val allStories = StorybookRegistry.getStoriesFromFile(externalDir!!)
         val stories = allStories.filter { shouldScreenshotStory(it) }
 
         Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
-
         assertTrue("No stories found in manifest", stories.isNotEmpty())
 
-        var successCount = 0
-        var failureCount = 0
         val failures = mutableListOf<String>()
 
         for (story in stories) {
             try {
-                screenshotStory(story)
-                successCount++
+                val storyName = story.toStoryName()
+                Log.d(TAG, "Screenshotting: $storyName (id: ${story.id})")
+
+                StorybookRegistry.prepareForNextStory()
+                scenario.onActivity { activity -> activity.loadStory(storyName) }
+                StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                waitForNextDraw(scenario)
+
+                scenario.onActivity { activity ->
+                    val screenshotName = story.id.replace("--", "_")
+                    Screenshot.snap(activity.window.decorView.rootView)
+                        .setName(screenshotName)
+                        .record()
+                    Log.d(TAG, "Screenshot captured: $screenshotName")
+                }
             } catch (e: Exception) {
-                failureCount++
                 val errorMsg = "${story.title}/${story.name}: ${e.message}"
                 failures.add(errorMsg)
                 Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
             }
         }
 
-        Log.d(TAG, "Screenshot results: $successCount passed, $failureCount failed")
+        scenario.close()
+
+        Log.d(TAG, "Screenshot results: ${stories.size - failures.size} passed, ${failures.size} failed")
 
         if (failures.isNotEmpty()) {
             Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
@@ -126,61 +152,28 @@ abstract class BaseStoryScreenshotTest {
         )
     }
 
-    private fun screenshotStory(storyInfo: StoryInfo) {
-        val storyName = storyInfo.toStoryName()
-        Log.d(TAG, "Screenshotting: $storyName (id: ${storyInfo.id})")
-
-        val intent = Intent(
-            ApplicationProvider.getApplicationContext(),
-            getStoryRendererActivityClass()
-        ).apply {
-            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, storyName)
-        }
-
-        StorybookRegistry.prepareForNextStory()
-        val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
-
-        // Wait for JS to signal the story has finished rendering, up to the timeout.
-        StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-
-        scenario.onActivity { activity ->
-            val rootView = activity.window.decorView.rootView
-
-            // Use story ID as screenshot name (replace -- with _ for filesystem compatibility)
-            val screenshotName = storyInfo.id.replace("--", "_")
-
-            // Capture screenshot using screenshot-tests-for-android
-            // In record mode: saves baseline images
-            // In verify mode: compares against baselines
-            Screenshot.snap(rootView)
-                .setName(screenshotName)
-                .record()
-
-            Log.d(TAG, "Screenshot captured: $screenshotName")
-        }
-
-        scenario.close()
-    }
-
     /**
-     * Bootstraps the story manifest by launching StoryRendererActivity.
-     * This allows React Native to initialize and register all stories.
+     * Waits for the next draw pass on the decor view.
+     *
+     * waitForIdleSync() drains the main thread message queue but view drawing
+     * is triggered by VSYNC via Choreographer, not the message queue. This
+     * method waits for an OnDrawListener callback, which fires after the next
+     * frame is actually drawn — ensuring the screenshot captures painted content.
      */
-    private fun bootstrapManifest(manifestFile: File) {
-        Log.d(TAG, "Launching StoryRenderer to generate manifest...")
-
-        val intent = Intent(
-            ApplicationProvider.getApplicationContext(),
-            getStoryRendererActivityClass()
-        ).apply {
-            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, BOOTSTRAP_STORY_NAME)
+    private fun waitForNextDraw(scenario: ActivityScenario<BaseStoryRendererActivity>) {
+        val latch = CountDownLatch(1)
+        scenario.onActivity { activity ->
+            val decorView = activity.window.decorView
+            decorView.viewTreeObserver.addOnDrawListener(object : ViewTreeObserver.OnDrawListener {
+                override fun onDraw() {
+                    latch.countDown()
+                    decorView.post {
+                        decorView.viewTreeObserver.removeOnDrawListener(this)
+                    }
+                }
+            })
         }
-
-        val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
-        waitForManifestFile(manifestFile)
-        scenario.close()
-
-        Log.d(TAG, "Bootstrap complete")
+        latch.await(2000, TimeUnit.MILLISECONDS)
     }
 
     /**

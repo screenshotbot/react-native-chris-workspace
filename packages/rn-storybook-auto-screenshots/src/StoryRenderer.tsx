@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, NativeModules } from 'react-native';
+import { View, Text, StyleSheet, NativeModules, NativeEventEmitter } from 'react-native';
 import { storyNameToId } from './utils';
 
 const { StorybookRegistry } = NativeModules;
@@ -57,15 +57,28 @@ export function registerStoriesWithNative() {
  * @param storyName - Format: "ComponentName/StoryName" (e.g., "MyFeature/Initial")
  */
 export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRendererProps) {
+  const [currentStoryName, setCurrentStoryName] = useState(storyName);
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const emitter = new NativeEventEmitter(NativeModules.StorybookRegistry);
+    const sub = emitter.addListener('loadStory', (name: string) => {
+      setCurrentStoryName(name);
+      setLoading(true);
+    });
+    return () => sub.remove();
+  }, []);
+
   // Notify native when the story has finished rendering (or errored).
-  // This runs after React commits the update, so the native views are up to date.
+  // requestAnimationFrame defers until after the next frame is painted,
+  // ensuring native view mutations are flushed before the screenshot is taken.
   useEffect(() => {
     if (!loading) {
-      StorybookRegistry.notifyStoryReady();
+      requestAnimationFrame(() => {
+        StorybookRegistry.notifyStoryReady();
+      });
     }
   }, [loading]);
 
@@ -83,7 +96,14 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
         // doesn't need to wait for createPreparedStoryMapping().
         registerStoriesWithNative();
 
-        const storyId = storyNameToId(storyName);
+        // Bootstrap story has no '/' — its only purpose is to trigger story
+        // registration above. Nothing to render.
+        if (!currentStoryName.includes('/')) {
+          setLoading(false);
+          return;
+        }
+
+        const storyId = storyNameToId(currentStoryName);
 
         // Wait for Storybook to be ready and prepare story mappings
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
@@ -94,7 +114,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
 
         if (!preparedStory) {
           const availableStories = Object.keys(storybookView._idToPrepared || {}).join(', ');
-          setError(`Story "${storyId}" not found. Available: ${availableStories}`);
+          setError(`Story "${currentStoryName}" (id: ${storyId}) not found. Available: ${availableStories}`);
           setLoading(false);
           return;
         }
@@ -115,7 +135,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
     }
 
     renderStory();
-  }, [storyName]);
+  }, [currentStoryName]);
 
   if (loading) {
     return (
