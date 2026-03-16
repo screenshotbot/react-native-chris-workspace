@@ -29,20 +29,24 @@ type StoryRendererProps = {
  * This allows the Android test to discover stories automatically.
  */
 let storiesRegistered = false;
-function registerStoriesWithNative() {
+/** @internal Exported for testing only */
+export function registerStoriesWithNative() {
   if (storiesRegistered || !StorybookRegistry) {
     return;
   }
 
-  try {
-    const stories = getAllStories();
-    if (stories.length > 0) {
-      StorybookRegistry.registerStories(stories);
-      storiesRegistered = true;
-      console.log(`Registered ${stories.length} stories with native module`);
-    }
-  } catch (e) {
-    console.warn('Failed to register stories with native module:', e);
+  if (!storybookView) {
+    throw new Error(
+      'rn-storybook-auto-screenshots: configure() was not called before registerStoriesWithNative(). ' +
+      'Call configure(view) during app initialization so stories can be discovered.'
+    );
+  }
+
+  const stories = getAllStories();
+  if (stories.length > 0) {
+    StorybookRegistry.registerStories(stories);
+    storiesRegistered = true;
+    console.log(`Registered ${stories.length} stories with native module`);
   }
 }
 
@@ -57,6 +61,14 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Notify native when the story has finished rendering (or errored).
+  // This runs after React commits the update, so the native views are up to date.
+  useEffect(() => {
+    if (!loading) {
+      StorybookRegistry.notifyStoryReady();
+    }
+  }, [loading]);
+
   useEffect(() => {
     async function renderStory() {
       try {
@@ -66,15 +78,17 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
           return;
         }
 
+        // Register all stories with native module for test discovery.
+        // _storyIndex is set synchronously by Storybook's start(), so this
+        // doesn't need to wait for createPreparedStoryMapping().
+        registerStoriesWithNative();
+
         const storyId = storyNameToId(storyName);
 
         // Wait for Storybook to be ready and prepare story mappings
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
           await storybookView.createPreparedStoryMapping();
         }
-
-        // Register all stories with native module for test discovery
-        registerStoriesWithNative();
 
         const preparedStory = storybookView._idToPrepared[storyId];
 

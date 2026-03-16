@@ -4,8 +4,6 @@ Auto-detect Storybook stories and generate screenshot tests for React Native.
 
 Uses [screenshot-tests-for-android](https://github.com/screenshotbot/screenshot-tests-for-android) under the hood to capture screenshots of every Storybook story automatically.
 
-> **Android only.** iOS is not yet supported.
-
 ## Installation
 
 ```bash
@@ -55,25 +53,7 @@ Register it in `AndroidManifest.xml`:
     android:exported="false" />
 ```
 
-### 4. Android — apply the screenshot plugin
-
-In your app's `build.gradle`, apply the [screenshot-tests-for-android](https://github.com/screenshotbot/screenshot-tests-for-android) Gradle plugin and disable Metro-dependent debug bundling so tests can run in CI without a Metro server:
-
-```gradle
-plugins {
-    // ... your existing plugins
-    id "io.screenshotbot.screenshot-tests-for-android"
-}
-
-react {
-    // ... your existing config
-
-    // Bundle JS for all variants so screenshot tests work without Metro running.
-    debuggableVariants = []
-}
-```
-
-### 5. Android — create the test runner
+### 4. Android — create the test runner
 
 Create `ScreenshotTestRunner.kt` in your `androidTest` directory:
 
@@ -91,7 +71,7 @@ android {
 }
 ```
 
-### 6. Android — create the screenshot test
+### 5. Android — create the screenshot test
 
 Create `StoryScreenshotTest.kt` in your `androidTest` directory:
 
@@ -102,13 +82,11 @@ class StoryScreenshotTest : BaseStoryScreenshotTest() {
 }
 ```
 
-### 7. Run the tests
+### 6. Run the tests
 
 ```bash
 ./gradlew screenshotTests
 ```
-
-This records a screenshot for every Storybook story and saves them to your device's storage. On subsequent runs it compares against the recorded baseline and fails if anything changed.
 
 ## Customization
 
@@ -145,9 +123,9 @@ class StoryScreenshotTest : BaseStoryScreenshotTest() {
 
 On the first test run, the library bootstraps itself:
 
-1. Launches `StoryRendererActivity` with a bootstrap story to initialize React Native
-2. `StorybookRegistry` writes all story metadata to a JSON file on device storage
-3. The test reads the manifest and loops through every story, rendering each one and capturing a screenshot
+1. Launches `StoryRendererActivity` with a known story
+2. React Native initializes and `StorybookRegistry` writes all story metadata to a JSON file on device storage
+3. The test reads the manifest and loops through every story, launching the activity for each and capturing a screenshot
 
 No manual list of stories needed — add a story to Storybook and it gets tested automatically.
 

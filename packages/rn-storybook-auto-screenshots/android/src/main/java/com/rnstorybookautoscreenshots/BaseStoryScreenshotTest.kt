@@ -34,6 +34,11 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+
+        // Not a real story — bootstrap just needs RN to load and register all stories.
+        // The StoryRenderer registers stories before attempting to look up the story name,
+        // so any string works here.
+        private const val BOOTSTRAP_STORY_NAME = "__bootstrap__"
     }
 
     @get:Rule
@@ -43,9 +48,11 @@ abstract class BaseStoryScreenshotTest {
     )
 
     /**
-     * Override this to provide your app's StoryRendererActivity class.
+     * Override to provide a custom StoryRendererActivity class.
+     * Defaults to BaseStoryRendererActivity, which is registered in the package manifest.
      */
-    abstract fun getStoryRendererActivityClass(): Class<out BaseStoryRendererActivity>
+    open fun getStoryRendererActivityClass(): Class<out BaseStoryRendererActivity> =
+        BaseStoryRendererActivity::class.java
 
     /**
      * Override to customize the React Native load timeout per story.
@@ -59,12 +66,6 @@ abstract class BaseStoryScreenshotTest {
      * Default is 10000ms.
      */
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
-
-    /**
-     * Override to provide a custom initial story for bootstrapping.
-     * Default is "MyFeature/Initial".
-     */
-    open fun getBootstrapStoryName(): String = "MyFeature/Initial"
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -87,13 +88,8 @@ abstract class BaseStoryScreenshotTest {
         // Bootstrap manifest if it doesn't exist
         if (!manifestFile.exists()) {
             Log.d(TAG, "Manifest not found, bootstrapping...")
-            bootstrapManifest()
+            bootstrapManifest(manifestFile)
         }
-
-        assertTrue(
-            "Stories manifest not found at ${manifestFile.absolutePath}. Bootstrap failed.",
-            manifestFile.exists()
-        )
 
         val allStories = StorybookRegistry.getStoriesFromFile(externalDir!!)
         val stories = allStories.filter { shouldScreenshotStory(it) }
@@ -141,10 +137,11 @@ abstract class BaseStoryScreenshotTest {
             putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, storyName)
         }
 
+        StorybookRegistry.prepareForNextStory()
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
 
-        // Wait for React Native to load and render
-        Thread.sleep(getLoadTimeoutMs())
+        // Wait for JS to signal the story has finished rendering, up to the timeout.
+        StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
 
         scenario.onActivity { activity ->
             val rootView = activity.window.decorView.rootView
@@ -169,23 +166,39 @@ abstract class BaseStoryScreenshotTest {
      * Bootstraps the story manifest by launching StoryRendererActivity.
      * This allows React Native to initialize and register all stories.
      */
-    private fun bootstrapManifest() {
+    private fun bootstrapManifest(manifestFile: File) {
         Log.d(TAG, "Launching StoryRenderer to generate manifest...")
 
         val intent = Intent(
             ApplicationProvider.getApplicationContext(),
             getStoryRendererActivityClass()
         ).apply {
-            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, getBootstrapStoryName())
+            putExtra(BaseStoryRendererActivity.EXTRA_STORY_NAME, BOOTSTRAP_STORY_NAME)
         }
 
         val scenario = ActivityScenario.launch<BaseStoryRendererActivity>(intent)
-
-        // Wait for React Native to fully load and register stories
-        Thread.sleep(getBootstrapTimeoutMs())
-
+        waitForManifestFile(manifestFile)
         scenario.close()
 
         Log.d(TAG, "Bootstrap complete")
+    }
+
+    /**
+     * Polls for the manifest file until it appears or the timeout elapses.
+     * The file is written by JS as soon as RN has loaded and registered all stories,
+     * so its appearance is a direct signal that RN is ready.
+     * Throws if the file has not appeared by the deadline.
+     */
+    private fun waitForManifestFile(manifestFile: File) {
+        val deadline = System.currentTimeMillis() + getBootstrapTimeoutMs()
+        while (!manifestFile.exists() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100)
+        }
+        if (!manifestFile.exists()) {
+            throw IllegalStateException(
+                "Manifest file did not appear within ${getBootstrapTimeoutMs()}ms. " +
+                "Make sure configure(view) is called in your app and the StoryRenderer is registered."
+            )
+        }
     }
 }
