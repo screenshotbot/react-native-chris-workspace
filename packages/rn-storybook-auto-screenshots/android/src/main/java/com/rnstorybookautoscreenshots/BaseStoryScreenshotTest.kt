@@ -1,9 +1,12 @@
 package com.rnstorybookautoscreenshots
 
 import android.Manifest
+import android.graphics.PixelFormat
 import android.os.Bundle
 import android.util.Log
+import android.view.ContextThemeWrapper
 import android.view.View
+import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.react.ReactApplication
@@ -44,7 +47,8 @@ abstract class BaseStoryScreenshotTest {
     @get:Rule
     val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
         Manifest.permission.WRITE_EXTERNAL_STORAGE,
-        Manifest.permission.READ_EXTERNAL_STORAGE
+        Manifest.permission.READ_EXTERNAL_STORAGE,
+        Manifest.permission.SYSTEM_ALERT_WINDOW
     )
 
     /**
@@ -154,24 +158,47 @@ abstract class BaseStoryScreenshotTest {
         val reactHost = app.reactHost
         if (reactHost != null) {
             // New arch (bridgeless): ReactHost + ReactSurface
-            val surface = reactHost.createSurface(
+            // Fabric requires the view to be attached to a real window before it will
+            // commit its render tree, so we attach via WindowManager before starting.
+            // Wrap with the app theme so AppCompat widgets (e.g. Switch) initialize correctly.
+            val context = ContextThemeWrapper(
                 instrumentation.targetContext,
+                instrumentation.targetContext.applicationInfo.theme
+            )
+            val surface = reactHost.createSurface(
+                context,
                 getMainComponentName(),
                 props
             )
-            instrumentation.runOnMainSync { surface.start() }
 
             val view = surface.view
                 ?: throw IllegalStateException("ReactSurface returned a null view")
 
-            ViewHelpers.setupView(view)
-                .setExactWidthPx(SCREEN_WIDTH_PX)
-                .setExactHeightPx(SCREEN_HEIGHT_PX)
-                .layout()
+            val wm = instrumentation.targetContext
+                .getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
+            val params = WindowManager.LayoutParams(
+                SCREEN_WIDTH_PX,
+                SCREEN_HEIGHT_PX,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            )
+
+            instrumentation.runOnMainSync {
+                // Force software rendering so Screenshot.snap() can capture via draw(canvas).
+                // WindowManager views are hardware-accelerated by default; GPU content is
+                // invisible to a software canvas.
+                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                wm.addView(view, params)
+                surface.start()
+            }
 
             onRendered(view)
 
-            instrumentation.runOnMainSync { surface.stop() }
+            instrumentation.runOnMainSync {
+                surface.stop()
+                wm.removeView(view)
+            }
         } else {
             // Old arch: ReactRootView + ReactInstanceManager
             val context = instrumentation.targetContext
