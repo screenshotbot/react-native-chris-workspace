@@ -131,7 +131,7 @@ data class StoryInfo(
     val name: String
 ) {
     /**
-     * Convert to format used by StoryRendererActivity: "Title/Name"
+     * Convert to format used by the StoryRenderer component: "Title/Name"
      */
     fun toStoryName(): String = "$title/$name"
 }
