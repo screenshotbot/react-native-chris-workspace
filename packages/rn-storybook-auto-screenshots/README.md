@@ -10,6 +10,8 @@ Uses [screenshot-tests-for-android](https://github.com/screenshotbot/screenshot-
 npm install rn-storybook-auto-screenshots
 ```
 
+The native module is registered automatically via React Native's autolink — no manual `MainApplication` changes needed.
+
 ## Setup
 
 ### 1. JS — configure and register
@@ -26,18 +28,7 @@ configure(view);
 AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);
 ```
 
-### 2. Android — add the native module
-
-In your `MainApplication`:
-
-```kotlin
-override fun getPackages() = listOf(
-    RNStorybookAutoScreenshotsPackage(),
-    // ... your other packages
-)
-```
-
-### 3. Android — create the story renderer activity
+### 2. Android — create the story renderer activity
 
 Create `StoryRendererActivity.kt` in your main source set:
 
@@ -53,7 +44,7 @@ Register it in `AndroidManifest.xml`:
     android:exported="false" />
 ```
 
-### 4. Android — create the test runner
+### 3. Android — create the test runner
 
 Create `ScreenshotTestRunner.kt` in your `androidTest` directory:
 
@@ -71,18 +62,16 @@ android {
 }
 ```
 
-### 5. Android — create the screenshot test
+### 4. Android — create the screenshot test
 
 Create `StoryScreenshotTest.kt` in your `androidTest` directory:
 
 ```kotlin
 @RunWith(AndroidJUnit4::class)
-class StoryScreenshotTest : BaseStoryScreenshotTest() {
-    override fun getStoryRendererActivityClass() = StoryRendererActivity::class.java
-}
+class StoryScreenshotTest : BaseStoryScreenshotTest()
 ```
 
-### 6. Run the tests
+### 5. Run the tests
 
 ```bash
 ./gradlew screenshotTests
@@ -93,8 +82,8 @@ class StoryScreenshotTest : BaseStoryScreenshotTest() {
 Override methods in `BaseStoryScreenshotTest` to customize behavior:
 
 ```kotlin
+@RunWith(AndroidJUnit4::class)
 class StoryScreenshotTest : BaseStoryScreenshotTest() {
-    override fun getStoryRendererActivityClass() = StoryRendererActivity::class.java
 
     // Skip stories you don't want to screenshot
     override fun shouldScreenshotStory(storyInfo: StoryInfo): Boolean {
@@ -123,9 +112,9 @@ class StoryScreenshotTest : BaseStoryScreenshotTest() {
 
 On the first test run, the library bootstraps itself:
 
-1. Launches `StoryRendererActivity` with a known story
+1. Renders a bootstrap story via `ReactRootView`/`ReactSurface` (depending on architecture)
 2. React Native initializes and `StorybookRegistry` writes all story metadata to a JSON file on device storage
-3. The test reads the manifest and loops through every story, launching the activity for each and capturing a screenshot
+3. The test reads the manifest and loops through every story, rendering each one and capturing a screenshot
 
 No manual list of stories needed — add a story to Storybook and it gets tested automatically.
 
