@@ -4,6 +4,7 @@ import android.Manifest
 import android.graphics.PixelFormat
 import android.os.Bundle
 import android.util.Log
+import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.WindowManager
@@ -17,6 +18,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Base screenshot test that automatically discovers and tests all Storybook stories.
@@ -38,7 +41,7 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
-        private const val DEFAULT_IDLE_SYNC_ROUNDS = 5
+        private const val DEFAULT_CHOREOGRAPHER_FRAMES = 3
         private const val BOOTSTRAP_STORY_NAME = "__bootstrap__"
 
         private const val SCREEN_WIDTH_PX = 1080
@@ -71,12 +74,14 @@ abstract class BaseStoryScreenshotTest {
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
 
     /**
-     * Override to customize how many waitForIdleSync() rounds are run after
-     * a story signals ready. Each round drains one layer of async work that
-     * Fabric or native widgets (e.g. SwitchCompat) may post to the main thread.
-     * Default is 5.
+     * Override to customize how many Choreographer frames are awaited after
+     * a story signals ready. Fabric schedules its native-view mount phase as
+     * a Choreographer FrameCallback (VSYNC-driven), so waitForIdleSync() alone
+     * cannot catch it. Each frame also drains follow-up Looper work before
+     * the next frame is awaited.
+     * Default is 3.
      */
-    open fun getIdleSyncRounds(): Int = DEFAULT_IDLE_SYNC_ROUNDS
+    open fun getChoreographerFrames(): Int = DEFAULT_CHOREOGRAPHER_FRAMES
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -92,7 +97,13 @@ abstract class BaseStoryScreenshotTest {
      */
     @Test
     fun screenshotAllStories() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+
+        // Disable system animations so native widgets (e.g. SwitchCompat) render
+        // their final state immediately rather than mid-animation.
+        disableAnimations(instrumentation)
+
+        val context = instrumentation.targetContext
         val externalDir = context.getExternalFilesDir("screenshots")
         val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
@@ -141,15 +152,37 @@ abstract class BaseStoryScreenshotTest {
         StorybookRegistry.prepareForNextStory()
         renderStory(storyName) { view ->
             StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-            // Drain the main thread repeatedly. Fabric's mount → native widget init
-            // (e.g. SwitchCompat) → animation setup → layout can span several async
-            // rounds; each waitForIdleSync() catches one round and gives the next a
-            // chance to be queued before we check again.
-            val instrumentation = InstrumentationRegistry.getInstrumentation()
-            repeat(getIdleSyncRounds()) { instrumentation.waitForIdleSync() }
+            // Fabric schedules its mount phase as a Choreographer FrameCallback, not a
+            // Looper message, so waitForIdleSync() alone cannot catch it. We await N
+            // frames here; each frame also drains its trailing Looper work before the
+            // next frame is requested, covering multi-pass native widget layout too.
+            awaitChoreographerFrames(
+                InstrumentationRegistry.getInstrumentation(),
+                getChoreographerFrames()
+            )
             val screenshotName = storyInfo.id.replace("--", "_")
             Screenshot.snap(view).setName(screenshotName).record()
             Log.d(TAG, "Screenshot captured: $screenshotName")
+        }
+    }
+
+    /**
+     * Awaits [count] Choreographer frames on the main thread. After each frame,
+     * drains the Looper to catch any follow-up work the frame may have posted.
+     */
+    private fun awaitChoreographerFrames(
+        instrumentation: android.app.Instrumentation,
+        count: Int
+    ) {
+        repeat(count) {
+            val latch = CountDownLatch(1)
+            instrumentation.runOnMainSync {
+                Choreographer.getInstance().postFrameCallback { latch.countDown() }
+            }
+            check(latch.await(5, TimeUnit.SECONDS)) {
+                "Timed out waiting for Choreographer frame"
+            }
+            instrumentation.waitForIdleSync()
         }
     }
 
@@ -236,6 +269,23 @@ abstract class BaseStoryScreenshotTest {
             onRendered(rootView)
 
             instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+        }
+    }
+
+    /**
+     * Disables system-wide animation scales via UiAutomation shell commands.
+     * This prevents native widget animations (e.g. SwitchCompat thumb) from
+     * rendering in an intermediate state when the screenshot is taken.
+     */
+    private fun disableAnimations(instrumentation: android.app.Instrumentation) {
+        listOf(
+            "animator_duration_scale",
+            "transition_animation_scale",
+            "window_animation_scale"
+        ).forEach { key ->
+            instrumentation.uiAutomation.executeShellCommand(
+                "settings put global $key 0"
+            ).close()
         }
     }
 
