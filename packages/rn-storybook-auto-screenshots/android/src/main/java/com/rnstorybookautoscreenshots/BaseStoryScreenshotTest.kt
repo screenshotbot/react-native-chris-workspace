@@ -38,6 +38,7 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
+        private const val DEFAULT_IDLE_SYNC_ROUNDS = 5
         private const val BOOTSTRAP_STORY_NAME = "__bootstrap__"
 
         private const val SCREEN_WIDTH_PX = 1080
@@ -68,6 +69,14 @@ abstract class BaseStoryScreenshotTest {
      * Default is 10000ms.
      */
     open fun getBootstrapTimeoutMs(): Long = DEFAULT_BOOTSTRAP_TIMEOUT_MS
+
+    /**
+     * Override to customize how many waitForIdleSync() rounds are run after
+     * a story signals ready. Each round drains one layer of async work that
+     * Fabric or native widgets (e.g. SwitchCompat) may post to the main thread.
+     * Default is 5.
+     */
+    open fun getIdleSyncRounds(): Int = DEFAULT_IDLE_SYNC_ROUNDS
 
     /**
      * Override to filter which stories should be screenshotted.
@@ -132,13 +141,12 @@ abstract class BaseStoryScreenshotTest {
         StorybookRegistry.prepareForNextStory()
         renderStory(storyName) { view ->
             StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-            // Drain the main thread twice. The first call catches work already queued
-            // when JS signals ready (e.g. Fabric's initial commit). Some native widgets
-            // (Switch, text measurement) post a second round of layout/mount work in
-            // response to the first — the second call catches that.
+            // Drain the main thread repeatedly. Fabric's mount → native widget init
+            // (e.g. SwitchCompat) → animation setup → layout can span several async
+            // rounds; each waitForIdleSync() catches one round and gives the next a
+            // chance to be queued before we check again.
             val instrumentation = InstrumentationRegistry.getInstrumentation()
-            instrumentation.waitForIdleSync()
-            instrumentation.waitForIdleSync()
+            repeat(getIdleSyncRounds()) { instrumentation.waitForIdleSync() }
             val screenshotName = storyInfo.id.replace("--", "_")
             Screenshot.snap(view).setName(screenshotName).record()
             Log.d(TAG, "Screenshot captured: $screenshotName")
