@@ -132,9 +132,13 @@ abstract class BaseStoryScreenshotTest {
         StorybookRegistry.prepareForNextStory()
         renderStory(storyName) { view ->
             StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-            // Wait for the main thread to drain any pending Fabric layout/mount work
-            // that may still be in flight after JS signals ready.
-            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            // Drain the main thread twice. The first call catches work already queued
+            // when JS signals ready (e.g. Fabric's initial commit). Some native widgets
+            // (Switch, text measurement) post a second round of layout/mount work in
+            // response to the first — the second call catches that.
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            instrumentation.waitForIdleSync()
+            instrumentation.waitForIdleSync()
             val screenshotName = storyInfo.id.replace("--", "_")
             Screenshot.snap(view).setName(screenshotName).record()
             Log.d(TAG, "Screenshot captured: $screenshotName")

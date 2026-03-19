@@ -31,10 +31,16 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         }
 
         /**
-         * Blocks until JS signals the story is rendered, or the timeout elapses.
+         * Blocks until JS signals the story is rendered, or throws if the timeout elapses.
          */
         fun awaitStoryReady(timeoutMs: Long) {
-            storyReadyLatch?.await(timeoutMs, TimeUnit.MILLISECONDS)
+            val completed = storyReadyLatch?.await(timeoutMs, TimeUnit.MILLISECONDS) ?: true
+            if (!completed) {
+                throw AssertionError(
+                    "Story did not call notifyStoryReady() within ${timeoutMs}ms. " +
+                    "The story may still be loading or failed silently on the JS side."
+                )
+            }
         }
 
         /**
