@@ -13,8 +13,9 @@ import java.util.concurrent.TimeUnit
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
- * Native module that receives the story list from Storybook JS side.
- * Stories are written to a file that screenshot tests can read.
+ * Native module with two responsibilities:
+ * - Receives the story list from JS and writes it to disk for test discovery.
+ * - Synchronises the test thread with JS rendering via a CountDownLatch.
  */
 
 class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -26,7 +27,7 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         @Volatile private var storyReadyLatch: CountDownLatch? = null
 
         /**
-         * Call before launching a story activity. Creates a fresh latch to wait on.
+         * Call before rendering each story. Creates a fresh latch for [awaitStoryReady].
          */
         fun prepareForNextStory() {
             storyReadyLatch = CountDownLatch(1)

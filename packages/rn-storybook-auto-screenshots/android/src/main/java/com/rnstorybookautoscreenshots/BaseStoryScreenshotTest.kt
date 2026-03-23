@@ -157,10 +157,11 @@ abstract class BaseStoryScreenshotTest {
 
         val reactHost = app.reactHost
         if (reactHost != null) {
-            // New arch (bridgeless): ReactHost + ReactSurface
-            // Fabric requires the view to be attached to a real window before it will
-            // commit its render tree, so we attach via WindowManager before starting.
-            // Wrap with the app theme so AppCompat widgets (e.g. Switch) initialize correctly.
+            // New arch (Fabric/bridgeless): ReactHost + ReactSurface.
+            // Fabric won't commit its render tree until the surface's host view is parented
+            // to a real Window. Test processes don't have an Activity window, so we attach
+            // via WindowManager using TYPE_APPLICATION_OVERLAY (requires SYSTEM_ALERT_WINDOW).
+            // Wrap with the app theme so AppCompat widgets (e.g. Switch) resolve styled attrs.
             val context = ContextThemeWrapper(
                 instrumentation.targetContext,
                 instrumentation.targetContext.applicationInfo.theme
@@ -200,19 +201,20 @@ abstract class BaseStoryScreenshotTest {
                 wm.removeView(view)
             }
         } else {
-            // Old arch: ReactRootView + ReactInstanceManager
+            // Old arch: ReactRootView + ReactInstanceManager (deprecated API).
             val context = instrumentation.targetContext
             val rootView = ReactRootView(context)
 
             @Suppress("DEPRECATION")
             val reactInstanceManager = app.reactNativeHost.reactInstanceManager
 
-            // startReactApplication asserts UI thread
+            // ReactRootView.startReactApplication() checks isOnUiThread() internally.
             instrumentation.runOnMainSync {
                 rootView.startReactApplication(reactInstanceManager, getMainComponentName(), props)
             }
 
-            // ViewHelpers.layout() triggers measure() → onMeasure() → attachToReactInstanceManager()
+            // setupView().layout() calls measure()+layout() at the fixed dimensions, which
+            // triggers onMeasure() → attachToReactInstanceManager() on the ReactRootView.
             ViewHelpers.setupView(rootView)
                 .setExactWidthPx(SCREEN_WIDTH_PX)
                 .setExactHeightPx(SCREEN_HEIGHT_PX)
