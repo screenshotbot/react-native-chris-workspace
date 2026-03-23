@@ -102,15 +102,28 @@ abstract class BaseStoryScreenshotTest {
         var failureCount = 0
         val failures = mutableListOf<String>()
 
-        for (story in stories) {
-            try {
-                screenshotStory(story)
-                successCount++
-            } catch (e: Exception) {
-                failureCount++
-                val errorMsg = "${story.title}/${story.name}: ${e.message}"
-                failures.add(errorMsg)
-                Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
+        // Keep a single surface alive for all stories. The first story is passed as the
+        // initial prop; subsequent stories are switched via loadStory() events so that
+        // _idToPrepared is only built once and each switch is fast.
+        StorybookRegistry.prepareForNextStory()
+        renderStory(stories.first().toStoryName()) { view ->
+            for (story in stories) {
+                try {
+                    if (story != stories.first()) {
+                        StorybookRegistry.prepareForNextStory()
+                        StorybookRegistry.loadStory(story.toStoryName())
+                    }
+                    StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
+                    val screenshotName = story.id.replace("--", "_")
+                    Screenshot.snap(view).setName(screenshotName).record()
+                    Log.d(TAG, "Screenshot captured: $screenshotName")
+                    successCount++
+                } catch (e: Exception) {
+                    failureCount++
+                    val errorMsg = "${story.title}/${story.name}: ${e.message}"
+                    failures.add(errorMsg)
+                    Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
+                }
             }
         }
 
@@ -123,19 +136,6 @@ abstract class BaseStoryScreenshotTest {
             "Some stories failed to screenshot: ${failures.joinToString(", ")}",
             failures.isEmpty()
         )
-    }
-
-    private fun screenshotStory(storyInfo: StoryInfo) {
-        val storyName = storyInfo.toStoryName()
-        Log.d(TAG, "Screenshotting: $storyName (id: ${storyInfo.id})")
-
-        StorybookRegistry.prepareForNextStory()
-        renderStory(storyName) { view ->
-            StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-            val screenshotName = storyInfo.id.replace("--", "_")
-            Screenshot.snap(view).setName(screenshotName).record()
-            Log.d(TAG, "Screenshot captured: $screenshotName")
-        }
     }
 
     private fun bootstrapManifest(manifestFile: File) {

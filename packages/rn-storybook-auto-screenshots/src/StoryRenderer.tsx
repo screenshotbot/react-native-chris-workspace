@@ -56,15 +56,18 @@ export function registerStoriesWithNative() {
  * @param storyName - Format: "ComponentName/StoryName" (e.g., "MyFeature/Initial")
  */
 export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRendererProps) {
+  const [activeStoryName, setActiveStoryName] = useState(storyName);
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect (() => {
+  // Switch stories without remounting — native calls loadStory() to trigger a new render.
+  useEffect(() => {
     const emitter = new NativeEventEmitter(NativeModules.StorybookRegistry);
     const sub = emitter.addListener('loadStory', (name: string) => {
-          console.log('loadStory event received:', name);
-        });
+      setLoading(true);
+      setActiveStoryName(name);
+    });
     return () => sub.remove();
   }, []);
 
@@ -89,7 +92,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
         // doesn't need to wait for createPreparedStoryMapping().
         registerStoriesWithNative();
 
-        const storyId = storyNameToId(storyName);
+        const storyId = storyNameToId(activeStoryName);
 
         // Lazily populate _idToPrepared — createPreparedStoryMapping() is async.
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
@@ -118,7 +121,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
     }
 
     renderStory();
-  }, [storyName]);
+  }, [activeStoryName]);
 
   if (loading) {
     return (

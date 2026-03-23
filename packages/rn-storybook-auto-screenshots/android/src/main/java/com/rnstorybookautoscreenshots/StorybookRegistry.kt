@@ -25,6 +25,12 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
         @Volatile private var storyReadyLatch: CountDownLatch? = null
+        @Volatile private var instance: StorybookRegistry? = null
+
+        /** Emit a loadStory event to JS, switching the active story without remounting. */
+        fun loadStory(storyName: String) {
+            instance?.loadStory(storyName)
+        }
 
         /**
          * Call before rendering each story. Creates a fresh latch for [awaitStoryReady].
@@ -67,6 +73,10 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
                 emptyList()
             }
         }
+    }
+
+    init {
+        instance = this
     }
 
     override fun getName(): String = "StorybookRegistry"
