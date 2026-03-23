@@ -183,10 +183,9 @@ abstract class BaseStoryScreenshotTest {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                // Position off-screen so the test window isn't visible to the user
-                // while still being attached to a real window (required by Fabric).
-                x = -SCREEN_WIDTH_PX
-                y = -SCREEN_HEIGHT_PX
+                // alpha=0 lets the compositor skip this window entirely while still
+                // satisfying Fabric's requirement that the surface be attached to a Window.
+                alpha = 0f
             }
 
             instrumentation.runOnMainSync {
