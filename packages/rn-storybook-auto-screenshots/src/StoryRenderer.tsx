@@ -4,7 +4,6 @@ import { storyNameToId } from './utils';
 
 const { StorybookRegistry } = NativeModules;
 
-// Storybook view instance - must be set via configure()
 let storybookView: any = null;
 
 /**
@@ -69,8 +68,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
     return () => sub.remove();
   }, []);
 
-  // Notify native when the story has finished rendering (or errored).
-  // This runs after React commits the update, so the native views are up to date.
+  // Notify native after React's commit phase so the test thread can proceed to screenshot.
   useEffect(() => {
     if (!loading) {
       StorybookRegistry.notifyStoryReady();
@@ -93,7 +91,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
 
         const storyId = storyNameToId(storyName);
 
-        // Wait for Storybook to be ready and prepare story mappings
+        // Lazily populate _idToPrepared — createPreparedStoryMapping() is async.
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
           await storybookView.createPreparedStoryMapping();
         }
@@ -107,10 +105,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
           return;
         }
 
-        // Get the full story context from Storybook's preview
         const storyContext = storybookView._preview.getStoryContext(preparedStory);
-
-        // Render the story using Storybook's prepared story
         const { unboundStoryFn: StoryComponent } = preparedStory;
         const rendered = <StoryComponent {...storyContext} />;
 
