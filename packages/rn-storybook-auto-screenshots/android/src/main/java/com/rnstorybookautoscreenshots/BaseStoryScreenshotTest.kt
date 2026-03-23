@@ -3,6 +3,8 @@ package com.rnstorybookautoscreenshots
 import android.Manifest
 import android.graphics.PixelFormat
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.View
@@ -184,7 +186,10 @@ abstract class BaseStoryScreenshotTest {
                 PixelFormat.TRANSLUCENT
             )
 
-            instrumentation.runOnMainSync {
+            // Post setup to the main thread without blocking. The test thread
+            // will immediately block on awaitStoryReady(), so setup and the
+            // wait for JS overlap rather than happening back-to-back.
+            Handler(Looper.getMainLooper()).post {
                 // Force software rendering so Screenshot.snap() can capture via draw(canvas).
                 // WindowManager views are hardware-accelerated by default; GPU content is
                 // invisible to a software canvas.
