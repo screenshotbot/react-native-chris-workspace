@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, NativeModules, NativeEventEmitter } from 'react-native';
+import { View, Text, StyleSheet, NativeModules, DeviceEventEmitter } from 'react-native';
 import { storyNameToId } from './utils';
 
 const { StorybookRegistry } = NativeModules;
@@ -63,8 +63,7 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
 
   // Switch stories without remounting — native calls loadStory() to trigger a new render.
   useEffect(() => {
-    const emitter = new NativeEventEmitter(NativeModules.StorybookRegistry);
-    const sub = emitter.addListener('loadStory', (name: string) => {
+    const sub = DeviceEventEmitter.addListener('loadStory', (name: string) => {
       setLoading(true);
       setActiveStoryName(name);
     });
