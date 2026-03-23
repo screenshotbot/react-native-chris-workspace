@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, NativeModules } from 'react-native';
+import { View, Text, StyleSheet, NativeModules, NativeEventEmitter } from 'react-native';
 import { storyNameToId } from './utils';
 
 const { StorybookRegistry } = NativeModules;
@@ -60,6 +60,14 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect (() => {
+    const emitter = new NativeEventEmitter(NativeModules.StorybookRegistry);
+    const sub = emitter.addListener('loadStory', (name: string) => {
+          console.log('loadStory event received:', name);
+        });
+    return () => sub.remove();
+  }, []);
 
   // Notify native when the story has finished rendering (or errored).
   // This runs after React commits the update, so the native views are up to date.
