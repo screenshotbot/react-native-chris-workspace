@@ -182,7 +182,12 @@ abstract class BaseStoryScreenshotTest {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
-            )
+            ).apply {
+                // Position off-screen so the test window isn't visible to the user
+                // while still being attached to a real window (required by Fabric).
+                x = -SCREEN_WIDTH_PX
+                y = -SCREEN_HEIGHT_PX
+            }
 
             instrumentation.runOnMainSync {
                 // Force software rendering so Screenshot.snap() can capture via draw(canvas).
