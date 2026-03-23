@@ -158,11 +158,13 @@ export function getAllStories(): Array<{ id: string; title: string; name: string
     return [];
   }
 
-  return Object.entries(storybookView._storyIndex.entries).map(([id, entry]: [string, any]) => ({
-    id,
-    title: entry.title,
-    name: entry.name,
-  }));
+  return Object.entries(storybookView._storyIndex.entries)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, entry]: [string, any]) => ({
+      id,
+      title: entry.title,
+      name: entry.name,
+    }));
 }
 
 const styles = StyleSheet.create({
