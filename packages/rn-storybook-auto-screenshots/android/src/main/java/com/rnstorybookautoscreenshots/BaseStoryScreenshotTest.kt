@@ -4,10 +4,13 @@ import android.Manifest
 import android.graphics.PixelFormat
 import android.os.Bundle
 import android.util.Log
+import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactRootView
@@ -114,12 +117,19 @@ abstract class BaseStoryScreenshotTest {
                         StorybookRegistry.loadStory(story.toStoryName())
                     }
                     StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-                    // Fabric dispatches view-tree mutations to the main thread asynchronously
-                    // after React's JS-side commit. notifyStoryReady() fires in useEffect
-                    // (post-commit, JS thread), but the main thread may not have applied those
-                    // mutations yet. runOnMainSync flushes the main thread's pending queue so
-                    // the screenshot captures the updated view rather than the first story.
-                    InstrumentationRegistry.getInstrumentation().runOnMainSync { }
+                    // Fabric dispatches view-tree mutations via the Choreographer
+                    // (postFrameCallback / DISPATCH_UI), not via a plain Handler post.
+                    // runOnMainSync{} only drains the Handler queue and can therefore
+                    // return *before* Fabric has applied the new story's mutations.
+                    // Posting our own postFrameCallback guarantees that Fabric's earlier-
+                    // registered callback (queued during the React commit, before useEffect
+                    // fired) runs first, leaving the native view hierarchy up-to-date when
+                    // we draw the screenshot.
+                    val frameLatch = CountDownLatch(1)
+                    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                        Choreographer.getInstance().postFrameCallback { frameLatch.countDown() }
+                    }
+                    frameLatch.await(1000, TimeUnit.MILLISECONDS)
                     val screenshotName = story.id.replace("--", "_")
                     Screenshot.snap(view).setName(screenshotName).record()
                     Log.d(TAG, "Screenshot captured: $screenshotName")
