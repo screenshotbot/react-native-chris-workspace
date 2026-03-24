@@ -131,7 +131,9 @@ abstract class BaseStoryScreenshotTest {
                     }
                     frameLatch.await(1000, TimeUnit.MILLISECONDS)
                     val screenshotName = story.id.replace("--", "_")
-                    Screenshot.snap(view).setName(screenshotName).record()
+                    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                        Screenshot.snap(view).setName(screenshotName).record()
+                    }
                     Log.d(TAG, "Screenshot captured: $screenshotName")
                     successCount++
                 } catch (e: Exception) {
