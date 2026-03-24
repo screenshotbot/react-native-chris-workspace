@@ -183,7 +183,11 @@ abstract class BaseStoryScreenshotTest {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
-            )
+            ).apply {
+                // alpha=0 lets the compositor skip this window entirely while still
+                // satisfying Fabric's requirement that the surface be attached to a Window.
+                alpha = 0f
+            }
 
             instrumentation.runOnMainSync {
                 // Force software rendering so Screenshot.snap() can capture via draw(canvas).
