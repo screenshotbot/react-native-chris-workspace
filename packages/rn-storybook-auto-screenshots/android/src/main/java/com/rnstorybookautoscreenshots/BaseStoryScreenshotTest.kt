@@ -87,15 +87,21 @@ abstract class BaseStoryScreenshotTest {
     @Test
     fun screenshotAllStories() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val externalDir = context.getExternalFilesDir("screenshots")
+        val externalDir = context.getExternalFilesDir("screenshots")!!
         val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
-        if (!manifestFile.exists()) {
-            Log.d(TAG, "Manifest not found, bootstrapping...")
-            bootstrapManifest(manifestFile)
-        }
+        // Always run the warm-up surface before the story loop, even if the manifest
+        // already exists on disk from a previous run. This guarantees:
+        //   1. The manifest is fresh (reflects the current story list).
+        //   2. _idToPrepared is fully populated before any story's timeout starts.
+        // Without this, stories on the first run after a manifest exists would have
+        // to wait for createPreparedStoryMapping() themselves, non-deterministically
+        // exceeding the 5 s timeout.
+        Log.d(TAG, "Warming up Storybook (registering stories + building prepared map)...")
+        bootstrapManifest(manifestFile)
+        Log.d(TAG, "Warm-up complete")
 
-        val allStories = StorybookRegistry.getStoriesFromFile(externalDir!!)
+        val allStories = StorybookRegistry.getStoriesFromFile(externalDir)
         val stories = allStories.filter { shouldScreenshotStory(it) }
 
         Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
