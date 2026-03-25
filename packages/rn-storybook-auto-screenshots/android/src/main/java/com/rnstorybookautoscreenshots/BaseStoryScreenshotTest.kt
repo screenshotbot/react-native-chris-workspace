@@ -105,26 +105,20 @@ abstract class BaseStoryScreenshotTest {
         var failureCount = 0
         val failures = mutableListOf<String>()
 
-        // Keep a single surface alive for all stories. The first story is passed as the
-        // initial prop; subsequent stories are switched via loadStory() events so that
-        // _idToPrepared is only built once and each switch is fast.
-        StorybookRegistry.prepareForNextStory()
-        renderStory(stories.first().toStoryName()) { view ->
-            for (story in stories) {
-                try {
-                    if (story != stories.first()) {
-                        StorybookRegistry.prepareForNextStory()
-                        StorybookRegistry.loadStory(story.toStoryName())
-                    }
+        // Mount a fresh surface for each story, passing the story name as the initial prop.
+        // This avoids relying on DeviceEventEmitter to switch stories (unreliable in
+        // bridgeless/new-arch mode) and ensures each story renders from a clean state.
+        for (story in stories) {
+            try {
+                StorybookRegistry.prepareForNextStory()
+                renderStory(story.toStoryName()) { view ->
                     StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
                     // Fabric dispatches view-tree mutations via the Choreographer
                     // (postFrameCallback / DISPATCH_UI), not via a plain Handler post.
-                    // runOnMainSync{} only drains the Handler queue and can therefore
-                    // return *before* Fabric has applied the new story's mutations.
-                    // Posting our own postFrameCallback guarantees that Fabric's earlier-
-                    // registered callback (queued during the React commit, before useEffect
-                    // fired) runs first, leaving the native view hierarchy up-to-date when
-                    // we draw the screenshot.
+                    // Posting our own postFrameCallback after awaitStoryReady guarantees
+                    // that Fabric's earlier-registered callback (queued during the React
+                    // commit, before useEffect fired) runs first, leaving the native view
+                    // hierarchy up-to-date when we draw the screenshot.
                     val frameLatch = CountDownLatch(1)
                     InstrumentationRegistry.getInstrumentation().runOnMainSync {
                         Choreographer.getInstance().postFrameCallback { frameLatch.countDown() }
@@ -136,12 +130,12 @@ abstract class BaseStoryScreenshotTest {
                     }
                     Log.d(TAG, "Screenshot captured: $screenshotName")
                     successCount++
-                } catch (e: Exception) {
-                    failureCount++
-                    val errorMsg = "${story.title}/${story.name}: ${e.message}"
-                    failures.add(errorMsg)
-                    Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
                 }
+            } catch (e: Exception) {
+                failureCount++
+                val errorMsg = "${story.title}/${story.name}: ${e.message}"
+                failures.add(errorMsg)
+                Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
             }
         }
 
@@ -216,11 +210,13 @@ abstract class BaseStoryScreenshotTest {
                 surface.start()
             }
 
-            onRendered(view)
-
-            instrumentation.runOnMainSync {
-                surface.stop()
-                wm.removeView(view)
+            try {
+                onRendered(view)
+            } finally {
+                instrumentation.runOnMainSync {
+                    surface.stop()
+                    wm.removeView(view)
+                }
             }
         } else {
             // Old arch: ReactRootView + ReactInstanceManager (deprecated API).
@@ -242,9 +238,11 @@ abstract class BaseStoryScreenshotTest {
                 .setExactHeightPx(SCREEN_HEIGHT_PX)
                 .layout()
 
-            onRendered(rootView)
-
-            instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+            try {
+                onRendered(rootView)
+            } finally {
+                instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+            }
         }
     }
 
