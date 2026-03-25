@@ -155,8 +155,14 @@ abstract class BaseStoryScreenshotTest {
 
     private fun bootstrapManifest(manifestFile: File) {
         Log.d(TAG, "Launching StoryRenderer to generate manifest...")
+        // prepareForNextStory() so awaitStoryReady() below has a latch to wait on.
+        // JS calls notifyStoryReady() only after createPreparedStoryMapping() finishes,
+        // so by the time we return here _idToPrepared is fully populated and every
+        // story in the loop can skip the expensive async mapping call.
+        StorybookRegistry.prepareForNextStory()
         renderStory(BOOTSTRAP_STORY_NAME) {
             waitForManifestFile(manifestFile)
+            StorybookRegistry.awaitStoryReady(getBootstrapTimeoutMs())
         }
         Log.d(TAG, "Bootstrap complete")
     }
