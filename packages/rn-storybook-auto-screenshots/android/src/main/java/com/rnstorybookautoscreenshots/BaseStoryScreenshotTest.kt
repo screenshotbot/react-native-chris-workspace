@@ -105,13 +105,16 @@ abstract class BaseStoryScreenshotTest {
         var failureCount = 0
         val failures = mutableListOf<String>()
 
-        // Mount a fresh surface for each story, passing the story name as the initial prop.
+        // Mount a fresh surface for each story, passing the story ID as the initial prop.
         // This avoids relying on DeviceEventEmitter to switch stories (unreliable in
         // bridgeless/new-arch mode) and ensures each story renders from a clean state.
+        // We pass the ID (e.g. "example-button--primary") rather than the title/name
+        // path so that StoryRenderer can look it up directly in _idToPrepared without
+        // any string conversion that would break hierarchical titles like "Example/Button".
         for (story in stories) {
             try {
                 StorybookRegistry.prepareForNextStory()
-                renderStory(story.toStoryName()) { view ->
+                renderStory(story.id) { view ->
                     StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
                     // Fabric dispatches view-tree mutations via the Choreographer
                     // (postFrameCallback / DISPATCH_UI), not via a plain Handler post.

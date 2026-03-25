@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, NativeModules, DeviceEventEmitter } from 'react-native';
-import { storyNameToId } from './utils';
 
 const { StorybookRegistry } = NativeModules;
 
@@ -53,9 +52,9 @@ export function registerStoriesWithNative() {
  * Renders individual Storybook stories for screenshot testing.
  * Uses Storybook's actual rendering pipeline.
  *
- * @param storyName - Format: "ComponentName/StoryName" (e.g., "MyFeature/Initial")
+ * @param storyName - Storybook story ID (e.g., "myfeature--initial")
  */
-export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRendererProps) {
+export function StoryRenderer({ storyName = 'myfeature--initial' }: StoryRendererProps) {
   const [activeStoryName, setActiveStoryName] = useState(storyName);
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +90,10 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
         // doesn't need to wait for createPreparedStoryMapping().
         registerStoriesWithNative();
 
-        const storyId = storyNameToId(activeStoryName);
+        // activeStoryName IS the story ID (e.g. "example-button--primary").
+        // Native passes the ID directly so hierarchical titles like "Example/Button"
+        // are handled correctly without any string conversion.
+        const storyId = activeStoryName;
 
         // Lazily populate _idToPrepared — createPreparedStoryMapping() is async.
         if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
