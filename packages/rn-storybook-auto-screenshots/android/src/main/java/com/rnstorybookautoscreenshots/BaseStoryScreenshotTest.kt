@@ -4,10 +4,13 @@ import android.Manifest
 import android.graphics.PixelFormat
 import android.os.Bundle
 import android.util.Log
+import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactRootView
@@ -28,9 +31,8 @@ import java.io.File
  * class StoryScreenshotTest : BaseStoryScreenshotTest()
  * ```
  *
- * This test automatically bootstraps the story manifest if it doesn't exist,
- * then creates a screenshot for each story. No manual test methods needed -
- * just add stories to Storybook and they get tested automatically.
+ * This test mounts a single surface once, bootstraps the story manifest, then
+ * drives each story via loadStory() events rather than remounting per story.
  */
 abstract class BaseStoryScreenshotTest {
 
@@ -78,72 +80,78 @@ abstract class BaseStoryScreenshotTest {
 
     /**
      * Screenshots all stories found in the manifest.
-     * Each story gets its own screenshot named after its ID.
-     * If the manifest doesn't exist, it will be bootstrapped automatically.
+     *
+     * Mounts a single ReactSurface for the entire run. The bootstrap render
+     * (storyName="__bootstrap__") triggers registerStoriesWithNative() and
+     * createPreparedStoryMapping() on the JS side. Subsequent stories are loaded
+     * via loadStory() events fired on the main thread, each waiting on a fresh
+     * CountDownLatch that notifyStoryReady() releases.
      */
     @Test
     fun screenshotAllStories() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val externalDir = context.getExternalFilesDir("screenshots")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val externalDir = instrumentation.targetContext.getExternalFilesDir("screenshots")!!
         val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
-        if (!manifestFile.exists()) {
-            Log.d(TAG, "Manifest not found, bootstrapping...")
-            bootstrapManifest(manifestFile)
-        }
-
-        val allStories = StorybookRegistry.getStoriesFromFile(externalDir!!)
-        val stories = allStories.filter { shouldScreenshotStory(it) }
-
-        Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
-        assertTrue("No stories found in manifest", stories.isNotEmpty())
-
-        var successCount = 0
-        var failureCount = 0
-        val failures = mutableListOf<String>()
-
-        for (story in stories) {
-            try {
-                screenshotStory(story)
-                successCount++
-            } catch (e: Exception) {
-                failureCount++
-                val errorMsg = "${story.title}/${story.name}: ${e.message}"
-                failures.add(errorMsg)
-                Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
-            }
-        }
-
-        Log.d(TAG, "Screenshot results: $successCount passed, $failureCount failed")
-        if (failures.isNotEmpty()) {
-            Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
-        }
-
-        assertTrue(
-            "Some stories failed to screenshot: ${failures.joinToString(", ")}",
-            failures.isEmpty()
-        )
-    }
-
-    private fun screenshotStory(storyInfo: StoryInfo) {
-        val storyName = storyInfo.toStoryName()
-        Log.d(TAG, "Screenshotting: $storyName (id: ${storyInfo.id})")
-
+        // Prepare a latch for the bootstrap render.
         StorybookRegistry.prepareForNextStory()
-        renderStory(storyName) { view ->
-            StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-            val screenshotName = storyInfo.id.replace("--", "_")
-            Screenshot.snap(view).setName(screenshotName).record()
-            Log.d(TAG, "Screenshot captured: $screenshotName")
-        }
-    }
 
-    private fun bootstrapManifest(manifestFile: File) {
-        Log.d(TAG, "Launching StoryRenderer to generate manifest...")
-        renderStory(BOOTSTRAP_STORY_NAME) {
+        // Mount a single surface for the whole test. The bootstrap render will:
+        //   1. Call registerStoriesWithNative() → write the manifest to disk.
+        //   2. Call createPreparedStoryMapping() → populate _idToPrepared.
+        //   3. Call notifyStoryReady() (via error path — __bootstrap__ is not a real story).
+        renderStory(BOOTSTRAP_STORY_NAME) { view ->
             waitForManifestFile(manifestFile)
+            StorybookRegistry.awaitStoryReady(getBootstrapTimeoutMs())
+            Log.d(TAG, "Bootstrap complete, surface ready")
+
+            val allStories = StorybookRegistry.getStoriesFromFile(externalDir)
+            val stories = allStories.filter { shouldScreenshotStory(it) }
+            Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
+            assertTrue("No stories found in manifest", stories.isNotEmpty())
+
+            var successCount = 0
+            val failures = mutableListOf<String>()
+
+            for (story in stories) {
+                try {
+                    StorybookRegistry.prepareForNextStory()
+                    instrumentation.runOnMainSync {
+                        StorybookRegistry.loadStory(story.id)
+                    }
+                    StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
+
+                    // Wait two frames so Fabric's native view mutations are fully applied
+                    // before we snap the software-layer bitmap.
+                    repeat(2) {
+                        val frameLatch = CountDownLatch(1)
+                        instrumentation.runOnMainSync {
+                            Choreographer.getInstance().postFrameCallback { frameLatch.countDown() }
+                        }
+                        frameLatch.await(1000, TimeUnit.MILLISECONDS)
+                    }
+
+                    val screenshotName = story.id.replace("--", "_")
+                    instrumentation.runOnMainSync {
+                        Screenshot.snap(view).setName(screenshotName).record()
+                    }
+                    Log.d(TAG, "Screenshot captured: $screenshotName")
+                    successCount++
+                } catch (e: Exception) {
+                    failures.add("${story.title}/${story.name}: ${e.message}")
+                    Log.e(TAG, "Failed to screenshot story: ${story.id}", e)
+                }
+            }
+
+            Log.d(TAG, "Screenshot results: $successCount passed, ${failures.size} failed")
+            if (failures.isNotEmpty()) {
+                Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
+            }
+            assertTrue(
+                "Some stories failed to screenshot: ${failures.joinToString(", ")}",
+                failures.isEmpty()
+            )
         }
-        Log.d(TAG, "Bootstrap complete")
     }
 
     /**
@@ -158,10 +166,6 @@ abstract class BaseStoryScreenshotTest {
         val reactHost = app.reactHost
         if (reactHost != null) {
             // New arch (Fabric/bridgeless): ReactHost + ReactSurface.
-            // Fabric won't commit its render tree until the surface's host view is parented
-            // to a real Window. Test processes don't have an Activity window, so we attach
-            // via WindowManager using TYPE_APPLICATION_OVERLAY (requires SYSTEM_ALERT_WINDOW).
-            // Wrap with the app theme so AppCompat widgets (e.g. Switch) resolve styled attrs.
             val context = ContextThemeWrapper(
                 instrumentation.targetContext,
                 instrumentation.targetContext.applicationInfo.theme
@@ -183,22 +187,23 @@ abstract class BaseStoryScreenshotTest {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
-            )
+            ).apply {
+                alpha = 0f
+            }
 
             instrumentation.runOnMainSync {
-                // Force software rendering so Screenshot.snap() can capture via draw(canvas).
-                // WindowManager views are hardware-accelerated by default; GPU content is
-                // invisible to a software canvas.
                 view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
                 wm.addView(view, params)
                 surface.start()
             }
 
-            onRendered(view)
-
-            instrumentation.runOnMainSync {
-                surface.stop()
-                wm.removeView(view)
+            try {
+                onRendered(view)
+            } finally {
+                instrumentation.runOnMainSync {
+                    surface.stop()
+                    wm.removeView(view)
+                }
             }
         } else {
             // Old arch: ReactRootView + ReactInstanceManager (deprecated API).
@@ -208,21 +213,20 @@ abstract class BaseStoryScreenshotTest {
             @Suppress("DEPRECATION")
             val reactInstanceManager = app.reactNativeHost.reactInstanceManager
 
-            // ReactRootView.startReactApplication() checks isOnUiThread() internally.
             instrumentation.runOnMainSync {
                 rootView.startReactApplication(reactInstanceManager, getMainComponentName(), props)
             }
 
-            // setupView().layout() calls measure()+layout() at the fixed dimensions, which
-            // triggers onMeasure() → attachToReactInstanceManager() on the ReactRootView.
             ViewHelpers.setupView(rootView)
                 .setExactWidthPx(SCREEN_WIDTH_PX)
                 .setExactHeightPx(SCREEN_HEIGHT_PX)
                 .layout()
 
-            onRendered(rootView)
-
-            instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+            try {
+                onRendered(rootView)
+            } finally {
+                instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+            }
         }
     }
 
