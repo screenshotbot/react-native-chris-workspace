@@ -10,8 +10,6 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import com.facebook.react.modules.core.DeviceEventManagerModule
-
 /**
  * Native module with two responsibilities:
  * - Receives the story list from JS and writes it to disk for test discovery.
@@ -91,9 +89,7 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     }
 
     fun loadStory(storyName: String) {
-        reactApplicationContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit("loadStory", storyName)
+        reactApplicationContext.emitDeviceEvent("loadStory", storyName)
     }
 
 
