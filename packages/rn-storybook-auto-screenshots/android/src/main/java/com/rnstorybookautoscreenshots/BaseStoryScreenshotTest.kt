@@ -31,9 +31,8 @@ import java.io.File
  * class StoryScreenshotTest : BaseStoryScreenshotTest()
  * ```
  *
- * This test automatically bootstraps the story manifest if it doesn't exist,
- * then creates a screenshot for each story. No manual test methods needed -
- * just add stories to Storybook and they get tested automatically.
+ * This test mounts a single surface once, bootstraps the story manifest, then
+ * drives each story via loadStory() events rather than remounting per story.
  */
 abstract class BaseStoryScreenshotTest {
 
@@ -81,96 +80,78 @@ abstract class BaseStoryScreenshotTest {
 
     /**
      * Screenshots all stories found in the manifest.
-     * Each story gets its own screenshot named after its ID.
-     * If the manifest doesn't exist, it will be bootstrapped automatically.
+     *
+     * Mounts a single ReactSurface for the entire run. The first render
+     * (storyName="__bootstrap__") triggers registerStoriesWithNative() and
+     * createPreparedStoryMapping() on the JS side. Subsequent stories are loaded
+     * via loadStory() events fired on the main thread, each waiting on a fresh
+     * CountDownLatch that notifyStoryReady() releases.
      */
     @Test
     fun screenshotAllStories() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val externalDir = context.getExternalFilesDir("screenshots")!!
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val externalDir = instrumentation.targetContext.getExternalFilesDir("screenshots")!!
         val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
-        // Always run the warm-up surface before the story loop, even if the manifest
-        // already exists on disk from a previous run. This guarantees:
-        //   1. The manifest is fresh (reflects the current story list).
-        //   2. _idToPrepared is fully populated before any story's timeout starts.
-        // Without this, stories on the first run after a manifest exists would have
-        // to wait for createPreparedStoryMapping() themselves, non-deterministically
-        // exceeding the 5 s timeout.
-        Log.d(TAG, "Warming up Storybook (registering stories + building prepared map)...")
-        bootstrapManifest(manifestFile)
-        Log.d(TAG, "Warm-up complete")
+        // Prepare a latch for the bootstrap render.
+        StorybookRegistry.prepareForNextStory()
 
-        val allStories = StorybookRegistry.getStoriesFromFile(externalDir)
-        val stories = allStories.filter { shouldScreenshotStory(it) }
+        // Mount a single surface for the whole test. The bootstrap render will:
+        //   1. Call registerStoriesWithNative() → write the manifest to disk.
+        //   2. Call createPreparedStoryMapping() → populate _idToPrepared.
+        //   3. Call notifyStoryReady() (via error path — __bootstrap__ is not a real story).
+        renderStory(BOOTSTRAP_STORY_NAME) { view ->
+            waitForManifestFile(manifestFile)
+            StorybookRegistry.awaitStoryReady(getBootstrapTimeoutMs())
+            Log.d(TAG, "Bootstrap complete, surface ready")
 
-        Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
-        assertTrue("No stories found in manifest", stories.isNotEmpty())
+            val allStories = StorybookRegistry.getStoriesFromFile(externalDir)
+            val stories = allStories.filter { shouldScreenshotStory(it) }
+            Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
+            assertTrue("No stories found in manifest", stories.isNotEmpty())
 
-        var successCount = 0
-        var failureCount = 0
-        val failures = mutableListOf<String>()
+            var successCount = 0
+            val failures = mutableListOf<String>()
 
-        // Mount a fresh surface for each story, passing the story ID as the initial prop.
-        // This avoids relying on DeviceEventEmitter to switch stories (unreliable in
-        // bridgeless/new-arch mode) and ensures each story renders from a clean state.
-        // We pass the ID (e.g. "example-button--primary") rather than the title/name
-        // path so that StoryRenderer can look it up directly in _idToPrepared without
-        // any string conversion that would break hierarchical titles like "Example/Button".
-        for (story in stories) {
-            try {
-                StorybookRegistry.prepareForNextStory()
-                renderStory(story.id) { view ->
-                    StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-                    // Fabric dispatches view-tree mutations via the Choreographer
-                    // (postFrameCallback / DISPATCH_UI), not via a plain Handler post.
-                    // Posting our own postFrameCallback after awaitStoryReady guarantees
-                    // that Fabric's earlier-registered callback (queued during the React
-                    // commit, before useEffect fired) runs first, leaving the native view
-                    // hierarchy up-to-date when we draw the screenshot.
-                    val frameLatch = CountDownLatch(1)
-                    InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                        Choreographer.getInstance().postFrameCallback { frameLatch.countDown() }
+            for (story in stories) {
+                try {
+                    StorybookRegistry.prepareForNextStory()
+                    instrumentation.runOnMainSync {
+                        StorybookRegistry.loadStory(story.id)
                     }
-                    frameLatch.await(1000, TimeUnit.MILLISECONDS)
+                    StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
+
+                    // Wait two frames so Fabric's native view mutations are fully applied
+                    // before we snap the software-layer bitmap.
+                    repeat(2) {
+                        val frameLatch = CountDownLatch(1)
+                        instrumentation.runOnMainSync {
+                            Choreographer.getInstance().postFrameCallback { frameLatch.countDown() }
+                        }
+                        frameLatch.await(1000, TimeUnit.MILLISECONDS)
+                    }
+
                     val screenshotName = story.id.replace("--", "_")
-                    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    instrumentation.runOnMainSync {
                         Screenshot.snap(view).setName(screenshotName).record()
                     }
                     Log.d(TAG, "Screenshot captured: $screenshotName")
                     successCount++
+                } catch (e: Exception) {
+                    failures.add("${story.title}/${story.name}: ${e.message}")
+                    Log.e(TAG, "Failed to screenshot story: ${story.id}", e)
                 }
-            } catch (e: Exception) {
-                failureCount++
-                val errorMsg = "${story.title}/${story.name}: ${e.message}"
-                failures.add(errorMsg)
-                Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
             }
-        }
 
-        Log.d(TAG, "Screenshot results: $successCount passed, $failureCount failed")
-        if (failures.isNotEmpty()) {
-            Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
+            Log.d(TAG, "Screenshot results: $successCount passed, ${failures.size} failed")
+            if (failures.isNotEmpty()) {
+                Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
+            }
+            assertTrue(
+                "Some stories failed to screenshot: ${failures.joinToString(", ")}",
+                failures.isEmpty()
+            )
         }
-
-        assertTrue(
-            "Some stories failed to screenshot: ${failures.joinToString(", ")}",
-            failures.isEmpty()
-        )
-    }
-
-    private fun bootstrapManifest(manifestFile: File) {
-        Log.d(TAG, "Launching StoryRenderer to generate manifest...")
-        // prepareForNextStory() so awaitStoryReady() below has a latch to wait on.
-        // JS calls notifyStoryReady() only after createPreparedStoryMapping() finishes,
-        // so by the time we return here _idToPrepared is fully populated and every
-        // story in the loop can skip the expensive async mapping call.
-        StorybookRegistry.prepareForNextStory()
-        renderStory(BOOTSTRAP_STORY_NAME) {
-            waitForManifestFile(manifestFile)
-            StorybookRegistry.awaitStoryReady(getBootstrapTimeoutMs())
-        }
-        Log.d(TAG, "Bootstrap complete")
     }
 
     /**
@@ -185,10 +166,6 @@ abstract class BaseStoryScreenshotTest {
         val reactHost = app.reactHost
         if (reactHost != null) {
             // New arch (Fabric/bridgeless): ReactHost + ReactSurface.
-            // Fabric won't commit its render tree until the surface's host view is parented
-            // to a real Window. Test processes don't have an Activity window, so we attach
-            // via WindowManager using TYPE_APPLICATION_OVERLAY (requires SYSTEM_ALERT_WINDOW).
-            // Wrap with the app theme so AppCompat widgets (e.g. Switch) resolve styled attrs.
             val context = ContextThemeWrapper(
                 instrumentation.targetContext,
                 instrumentation.targetContext.applicationInfo.theme
@@ -211,15 +188,10 @@ abstract class BaseStoryScreenshotTest {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                // alpha=0 lets the compositor skip this window entirely while still
-                // satisfying Fabric's requirement that the surface be attached to a Window.
                 alpha = 0f
             }
 
             instrumentation.runOnMainSync {
-                // Force software rendering so Screenshot.snap() can capture via draw(canvas).
-                // WindowManager views are hardware-accelerated by default; GPU content is
-                // invisible to a software canvas.
                 view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
                 wm.addView(view, params)
                 surface.start()
@@ -241,13 +213,10 @@ abstract class BaseStoryScreenshotTest {
             @Suppress("DEPRECATION")
             val reactInstanceManager = app.reactNativeHost.reactInstanceManager
 
-            // ReactRootView.startReactApplication() checks isOnUiThread() internally.
             instrumentation.runOnMainSync {
                 rootView.startReactApplication(reactInstanceManager, getMainComponentName(), props)
             }
 
-            // setupView().layout() calls measure()+layout() at the fixed dimensions, which
-            // triggers onMeasure() → attachToReactInstanceManager() on the ReactRootView.
             ViewHelpers.setupView(rootView)
                 .setExactWidthPx(SCREEN_WIDTH_PX)
                 .setExactHeightPx(SCREEN_HEIGHT_PX)
