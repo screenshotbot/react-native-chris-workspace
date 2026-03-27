@@ -45,94 +45,120 @@ export function registerStoriesWithNative() {
 }
 
 /**
+ * Builds the prepared story mapping without waiting for _preview.ready().
+ *
+ * createPreparedStoryMapping() waits on storeInitializationPromise, which only
+ * resolves when the Storybook UI renders. In our test scenario the UI never
+ * renders, so it hangs. We bypass it by going directly to storyStoreValue,
+ * which is set synchronously during app startup before our surface mounts.
+ * The importFn is async (importPath) => importMap[importPath] — the map is
+ * eagerly loaded, so each loadStory call resolves in the next microtask.
+ */
+async function buildPreparedStories() {
+  if (Object.keys(storybookView._idToPrepared).length > 0) {
+    return; // already populated (e.g. by Storybook's own updateView())
+  }
+
+  const storyStore = storybookView._preview.storyStoreValue;
+  if (storyStore) {
+    await Promise.all(
+      Object.keys(storybookView._storyIndex.entries).map(async (storyId: string) => {
+        storybookView._idToPrepared[storyId] = await storyStore.loadStory({ storyId });
+      })
+    );
+  } else {
+    // storyStore not yet set — fall back to the standard path.
+    await storybookView.createPreparedStoryMapping();
+  }
+}
+
+/**
  * Renders all Storybook stories for screenshot testing, one at a time.
  *
- * JS drives the entire sequence — there are no incoming events from native.
+ * JS drives the entire sequence — no events from native, no blocking sync calls.
  *
  * Flow:
- *   1. Mount → register stories → createPreparedStoryMapping() once
- *   2. for (story of allStories):
- *        a. setCurrentStoryId(story.id) → React renders the story
- *        b. useEffect fires after commit → resolves the "render done" Promise
- *        c. await notifyStoryReady(story.id) → native takes screenshot,
- *           then resolves this Promise so JS can proceed
- *   3. allStoriesDone() — signals the test thread to exit and unmount
+ *   1. Mount → register stories → buildPreparedStories() (sync-ish, no ready() wait)
+ *   2. setCurrentStoryId(stories[0].id) → React renders
+ *   3. useEffect([storyContent, error]) fires after commit → notifyStoryReady(id)
+ *      → native takes screenshot, resolves Promise → advance to next story
+ *   4. Repeat until all stories done → allStoriesDone()
  */
 export function StoryRenderer() {
   const [currentStoryId, setCurrentStoryId] = useState<string | null>(null);
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Holds the resolve function for the "render done" Promise created in runAllStories().
-  // Set before setCurrentStoryId(), called after each commit in the effect below.
-  const renderResolverRef = useRef<(() => void) | null>(null);
+  // Story list and current position, set once during init.
+  const storiesRef = useRef<Array<{ id: string }>>([]);
+  const indexRef = useRef(-1); // -1 = not started yet
 
-  // After each story is committed to the view, resolve the pending render Promise
-  // so the story loop can proceed to notify native.
+  // After each story is committed to the view, notify native directly —
+  // no intermediate Promise, same pattern as the original notifyStoryReady call.
+  // When native resolves (screenshot taken), advance to the next story.
   useEffect(() => {
-    if (renderResolverRef.current) {
-      renderResolverRef.current();
-      renderResolverRef.current = null;
-    }
+    if (indexRef.current < 0) return; // init hasn't set the first story yet
+
+    const story = storiesRef.current[indexRef.current];
+    if (!story) return;
+
+    StorybookRegistry.notifyStoryReady(story.id).then(() => {
+      const next = indexRef.current + 1;
+      indexRef.current = next;
+      if (next < storiesRef.current.length) {
+        setCurrentStoryId(storiesRef.current[next].id);
+      } else {
+        StorybookRegistry.allStoriesDone();
+      }
+    });
   }, [storyContent, error]);
 
-  // Render the story for the current storyId.
+  // Render the prepared story synchronously — _idToPrepared is built before
+  // the first setCurrentStoryId call, so no async work needed here.
   useEffect(() => {
     if (currentStoryId === null) return;
 
-    async function renderStory() {
-      try {
-        const preparedStory = storybookView._idToPrepared[currentStoryId!];
-        if (!preparedStory) {
-          const available = Object.keys(storybookView._idToPrepared || {}).join(', ');
-          setError(`Story "${currentStoryId}" not found. Available: ${available}`);
-          setStoryContent(null);
-          return;
-        }
-        const storyContext = storybookView._preview.getStoryContext(preparedStory);
-        const { unboundStoryFn: StoryComponent } = preparedStory;
-        setError(null);
-        setStoryContent(<StoryComponent {...storyContext} />);
-      } catch (e) {
-        setError(`Error rendering story: ${e}`);
+    try {
+      const preparedStory = storybookView._idToPrepared[currentStoryId];
+      if (!preparedStory) {
+        setError(`Story "${currentStoryId}" not found`);
         setStoryContent(null);
+        return;
       }
+      const storyContext = storybookView._preview.getStoryContext(preparedStory);
+      const { unboundStoryFn: StoryComponent } = preparedStory;
+      setError(null);
+      setStoryContent(<StoryComponent {...storyContext} />);
+    } catch (e) {
+      setError(`Error rendering story: ${e}`);
+      setStoryContent(null);
     }
-
-    renderStory();
   }, [currentStoryId]);
 
-  // Main story loop — runs once on mount.
+  // Bootstrap: build prepared stories once, then kick off the story loop.
   useEffect(() => {
-    async function runAllStories() {
+    async function init() {
       if (!storybookView) {
         setError('Storybook not configured. Call configure(view) first.');
         return;
       }
 
-      // Write the story list to disk and build the prepared story mapping.
       registerStoriesWithNative();
-      await storybookView.createPreparedStoryMapping();
+      await buildPreparedStories();
 
       const stories = getAllStories();
-      for (const story of stories) {
-        // Ask React to render this story.
-        // The Promise resolves only after the commit (in the useEffect above),
-        // so we don't notify native until the view is actually painted.
-        await new Promise<void>((resolve) => {
-          renderResolverRef.current = resolve;
-          setCurrentStoryId(story.id);
-        });
+      storiesRef.current = stories;
 
-        // Hand off to native — resolves when the test thread has taken the screenshot.
-        await StorybookRegistry.notifyStoryReady(story.id);
+      if (stories.length === 0) {
+        StorybookRegistry.allStoriesDone();
+        return;
       }
 
-      // Tell the test thread there are no more stories.
-      StorybookRegistry.allStoriesDone();
+      indexRef.current = 0;
+      setCurrentStoryId(stories[0].id);
     }
 
-    runAllStories();
+    init();
   }, []);
 
   if (error) {
