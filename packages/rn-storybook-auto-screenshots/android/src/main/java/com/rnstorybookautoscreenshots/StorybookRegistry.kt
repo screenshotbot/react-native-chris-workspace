@@ -3,6 +3,7 @@ package com.rnstorybookautoscreenshots
 import android.util.Log
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import org.json.JSONArray
@@ -15,13 +16,13 @@ import java.util.concurrent.TimeUnit
 /**
  * Native module with three responsibilities:
  * - Receives the story list from JS and writes it to disk for test discovery.
- * - Provides awaitNextStory(), a blocking synchronous JSI call that lets JS
- *   pull the next story ID from the test runner rather than receiving events.
+ * - Provides awaitNextStory(), a Promise-based pull that lets JS wait for the
+ *   next story ID from the test runner rather than receiving events.
  * - Synchronises the test thread with JS rendering via a CountDownLatch.
  *
  * Communication flow:
  *   Test thread → pushStory(id) → storyQueue
- *   JS thread   ← awaitNextStory() ← storyQueue   (blocks JS thread)
+ *   JS thread   ← await awaitNextStory() ← background thread ← storyQueue
  *   JS thread   → notifyStoryReady()
  *   Test thread ← awaitStoryReady() ← storyReadyLatch
  */
@@ -93,18 +94,18 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     override fun getName(): String = "StorybookRegistry"
 
     /**
-     * Blocking synchronous JSI call — blocks the JS thread until the test runner
-     * pushes the next story ID via [pushStory].
+     * Promise-based pull — resolves with the next story ID once the test runner
+     * pushes one via [pushStory], or null when the test runner signals done.
      *
-     * Returns the story ID string, or null when the test runner signals done.
-     *
-     * NOTE: isBlockingSynchronousMethod is deprecated in the new architecture.
-     * This is an experimental branch to evaluate whether synchronous pulling
-     * is cleaner than the event-based push model.
+     * The blocking queue.poll() runs on a background thread so the React Native
+     * JS thread is never blocked (replaces the deprecated isBlockingSynchronousMethod).
      */
-    @ReactMethod(isBlockingSynchronousMethod = true)
-    fun awaitNextStory(): String? {
-        return storyQueue.poll(30, TimeUnit.SECONDS)
+    @ReactMethod
+    fun awaitNextStory(promise: Promise) {
+        Thread {
+            val storyId = storyQueue.poll(30, TimeUnit.SECONDS)
+            promise.resolve(storyId)
+        }.start()
     }
 
     /**

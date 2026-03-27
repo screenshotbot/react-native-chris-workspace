@@ -45,18 +45,43 @@ export function registerStoriesWithNative() {
 }
 
 /**
+ * Builds the prepared story mapping without waiting for _preview.ready().
+ *
+ * createPreparedStoryMapping() waits on storeInitializationPromise, which only
+ * resolves when the Storybook UI renders. In our test scenario the UI never
+ * renders, so it hangs. We bypass it by going directly to storyStoreValue,
+ * which is set synchronously during app startup before our surface mounts.
+ */
+async function buildPreparedStories() {
+  if (Object.keys(storybookView._idToPrepared).length > 0) {
+    return; // already populated
+  }
+
+  const storyStore = storybookView._preview.storyStoreValue;
+  if (storyStore) {
+    await Promise.all(
+      Object.keys(storybookView._storyIndex.entries).map(async (storyId: string) => {
+        storybookView._idToPrepared[storyId] = await storyStore.loadStory({ storyId });
+      })
+    );
+  } else {
+    await storybookView.createPreparedStoryMapping();
+  }
+}
+
+/**
  * Renders Storybook stories for screenshot testing.
  *
- * Instead of receiving a story name via prop or event, this component drives
- * itself by calling the synchronous native method awaitNextStory(), which
- * blocks the JS thread until the test runner enqueues the next story ID.
+ * Native controls the story order by pushing IDs into a queue. JS pulls each
+ * ID by awaiting awaitNextStory() (Promise resolved on a background thread),
+ * renders the story, notifies native via notifyStoryReady(), then awaits the
+ * next ID. This inverts the event-push model: JS pulls rather than native pushing.
  *
  * Flow:
- *   1. Mount → register stories → call awaitNextStory() (blocks JS thread)
- *   2. Test thread pushes story ID into the queue → JS unblocks
- *   3. React re-renders the story
- *   4. After commit: notifyStoryReady() releases native latch, then
- *      awaitNextStory() blocks again for the next story
+ *   1. Mount → register stories → await awaitNextStory() (waits for queue)
+ *   2. Test thread pushes story ID → Promise resolves → JS renders
+ *   3. After commit: notifyStoryReady() releases native latch
+ *   4. await awaitNextStory() again — native takes screenshot, then pushes next ID
  *   5. When native pushes null, the loop ends
  */
 export function StoryRenderer() {
@@ -64,33 +89,36 @@ export function StoryRenderer() {
   const [storyContent, setStoryContent] = useState<React.ReactNode>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Bootstrap: register stories then block waiting for the first story ID.
+  // Bootstrap: register stories then wait for the first story ID from native.
   useEffect(() => {
-    if (!storybookView) {
-      setError('Storybook not configured. Call configure(view) first.');
-      return;
+    async function init() {
+      if (!storybookView) {
+        setError('Storybook not configured. Call configure(view) first.');
+        return;
+      }
+
+      registerStoriesWithNative();
+
+      // awaitNextStory() resolves on a background thread once the test runner
+      // pushes the first story ID via pushStory().
+      const firstId: string | null = await StorybookRegistry.awaitNextStory();
+      if (firstId !== null) {
+        setCurrentStoryId(firstId);
+      }
     }
 
-    registerStoriesWithNative();
-
-    // awaitNextStory() is a blocking synchronous JSI call — it returns only
-    // when the test thread pushes a story ID (or null to signal done).
-    const firstId: string | null = StorybookRegistry.awaitNextStory();
-    if (firstId !== null) {
-      setCurrentStoryId(firstId);
-    }
+    init();
   }, []);
 
-  // Render the current story whenever currentStoryId changes.
+  // Render the story for the current storyId.
+  // buildPreparedStories() is called lazily here to handle the first real story
+  // (bootstrap ID "__bootstrap__" won't have a prepared entry — that's expected).
   useEffect(() => {
     if (currentStoryId === null) return;
 
     async function renderStory() {
       try {
-        // Lazily populate _idToPrepared — createPreparedStoryMapping() is async.
-        if (!storybookView._idToPrepared || Object.keys(storybookView._idToPrepared).length === 0) {
-          await storybookView.createPreparedStoryMapping();
-        }
+        await buildPreparedStories();
 
         const preparedStory = storybookView._idToPrepared[currentStoryId!];
         if (!preparedStory) {
@@ -113,21 +141,23 @@ export function StoryRenderer() {
     renderStory();
   }, [currentStoryId]);
 
-  // After each story commit: signal native, then block waiting for the next story.
-  // This effect fires once storyContent or error has settled for the current story.
+  // After each story commit: signal native, then await the next story ID.
+  // notifyStoryReady() releases the latch the test thread is waiting on.
+  // awaitNextStory() blocks (on a background thread) until native pushes the
+  // next ID — giving native time to take the screenshot first.
   useEffect(() => {
     if (currentStoryId === null) return;
 
-    // Signal native that the current story is fully rendered.
-    StorybookRegistry.notifyStoryReady();
-
-    // Block the JS thread until the test runner pushes the next story ID.
-    // While blocked, native takes the screenshot and advances its loop.
-    const nextId: string | null = StorybookRegistry.awaitNextStory();
-    if (nextId !== null) {
-      setCurrentStoryId(nextId);
+    async function advance() {
+      StorybookRegistry.notifyStoryReady();
+      const nextId: string | null = await StorybookRegistry.awaitNextStory();
+      if (nextId !== null) {
+        setCurrentStoryId(nextId);
+      }
+      // else: null means all stories are done — stop here.
     }
-    // else: null means all stories are done — we stop here.
+
+    advance();
   }, [storyContent, error]);
 
   if (error) {
