@@ -9,22 +9,43 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
- * Native module with two responsibilities:
+ * Native module with three responsibilities:
  * - Receives the story list from JS and writes it to disk for test discovery.
+ * - Provides awaitNextStory(), a blocking synchronous JSI call that lets JS
+ *   pull the next story ID from the test runner rather than receiving events.
  * - Synchronises the test thread with JS rendering via a CountDownLatch.
+ *
+ * Communication flow:
+ *   Test thread → pushStory(id) → storyQueue
+ *   JS thread   ← awaitNextStory() ← storyQueue   (blocks JS thread)
+ *   JS thread   → notifyStoryReady()
+ *   Test thread ← awaitStoryReady() ← storyReadyLatch
  */
-
 class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     companion object {
         private const val TAG = "StorybookRegistry"
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
+        // Capacity 1 so pushStory() blocks until JS has consumed the current entry,
+        // giving natural back-pressure between the test runner and JS.
+        private val storyQueue = LinkedBlockingQueue<String?>(1)
+
         @Volatile private var storyReadyLatch: CountDownLatch? = null
+
+        /**
+         * Called by the test thread to enqueue the next story for JS to render.
+         * Pass null to signal that all stories are done.
+         *
+         * Blocks until JS has consumed the previous entry (queue capacity = 1).
+         */
+        fun pushStory(storyId: String?) {
+            storyQueue.put(storyId)
+        }
 
         /**
          * Call before rendering each story. Creates a fresh latch for [awaitStoryReady].
@@ -72,18 +93,27 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     override fun getName(): String = "StorybookRegistry"
 
     /**
+     * Blocking synchronous JSI call — blocks the JS thread until the test runner
+     * pushes the next story ID via [pushStory].
+     *
+     * Returns the story ID string, or null when the test runner signals done.
+     *
+     * NOTE: isBlockingSynchronousMethod is deprecated in the new architecture.
+     * This is an experimental branch to evaluate whether synchronous pulling
+     * is cleaner than the event-based push model.
+     */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    fun awaitNextStory(): String? {
+        return storyQueue.poll(30, TimeUnit.SECONDS)
+    }
+
+    /**
      * Called from JS when a story has finished rendering (or errored).
-     * Releases the latch that screenshotStory() is waiting on.
+     * Releases the latch that the test thread is waiting on.
      */
     @ReactMethod
     fun notifyStoryReady() {
         storyReadyLatch?.countDown()
-    }
-
-    fun loadStory(storyName: String) {
-        reactApplicationContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit("loadStory", storyName)
     }
 
 
