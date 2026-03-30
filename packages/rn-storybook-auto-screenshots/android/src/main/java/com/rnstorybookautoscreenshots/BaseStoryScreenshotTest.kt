@@ -9,13 +9,13 @@ import android.util.Log
 import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactRootView
 import com.facebook.testing.screenshot.Screenshot
-import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -107,10 +107,7 @@ abstract class BaseStoryScreenshotTest {
                 waitTwoFrames()
                 val screenshotName = storyId.replace("--", "_")
                 instrumentation.runOnMainSync {
-                    ViewHelpers.setupView(view)
-                        .setExactWidthPx(SCREEN_WIDTH_PX)
-                        .setExactHeightPx(SCREEN_HEIGHT_PX)
-                        .layout()
+                    setLayerTypeSoftwareRecursively(view)
                     Screenshot.snap(view).setName(screenshotName).record()
                 }
                 Log.d(TAG, "Screenshot captured: $screenshotName")
@@ -211,6 +208,23 @@ abstract class BaseStoryScreenshotTest {
             onMounted(rootView)
 
             instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+        }
+    }
+
+    /**
+     * Recursively sets LAYER_TYPE_SOFTWARE on a view and all its descendants.
+     *
+     * view.draw(canvas) cannot capture children that have hardware display lists.
+     * Fabric child views in a hardware-accelerated WindowManager window get hardware
+     * display lists by default, so they render blank into a software canvas.
+     * Walking the tree and forcing software layers ensures draw() sees all content.
+     */
+    private fun setLayerTypeSoftwareRecursively(view: View) {
+        view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                setLayerTypeSoftwareRecursively(view.getChildAt(i))
+            }
         }
     }
 
