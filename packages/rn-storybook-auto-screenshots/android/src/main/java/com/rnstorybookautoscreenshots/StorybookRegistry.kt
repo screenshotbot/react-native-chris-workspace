@@ -34,7 +34,9 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
 
         // Capacity 1 so pushStory() blocks until JS has consumed the current entry,
         // giving natural back-pressure between the test runner and JS.
-        private val storyQueue = LinkedBlockingQueue<String?>(1)
+        // LinkedBlockingQueue does not allow null, so we use a sentinel to signal done.
+        private const val DONE_SENTINEL = "__done__"
+        private val storyQueue = LinkedBlockingQueue<String>(1)
 
         @Volatile private var storyReadyLatch: CountDownLatch? = null
 
@@ -45,7 +47,7 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
          * Blocks until JS has consumed the previous entry (queue capacity = 1).
          */
         fun pushStory(storyId: String?) {
-            storyQueue.put(storyId)
+            storyQueue.put(storyId ?: DONE_SENTINEL)
         }
 
         /**
@@ -103,8 +105,8 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     @ReactMethod
     fun awaitNextStory(promise: Promise) {
         Thread {
-            val storyId = storyQueue.poll(30, TimeUnit.SECONDS)
-            promise.resolve(storyId)
+            val raw = storyQueue.poll(30, TimeUnit.SECONDS)
+            promise.resolve(if (raw == DONE_SENTINEL) null else raw)
         }.start()
     }
 
