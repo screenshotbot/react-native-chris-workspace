@@ -3,28 +3,52 @@ package com.rnstorybookautoscreenshots
 import android.util.Log
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableArray
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
-import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
- * Native module with two responsibilities:
+ * Native module with three responsibilities:
  * - Receives the story list from JS and writes it to disk for test discovery.
+ * - Provides awaitNextStory(), a Promise-based pull that lets JS wait for the
+ *   next story ID from the test runner rather than receiving events.
  * - Synchronises the test thread with JS rendering via a CountDownLatch.
+ *
+ * Communication flow:
+ *   Test thread → pushStory(id) → storyQueue
+ *   JS thread   ← await awaitNextStory() ← background thread ← storyQueue
+ *   JS thread   → notifyStoryReady()
+ *   Test thread ← awaitStoryReady() ← storyReadyLatch
  */
-
 class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     companion object {
         private const val TAG = "StorybookRegistry"
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
+        // Capacity 1 so pushStory() blocks until JS has consumed the current entry,
+        // giving natural back-pressure between the test runner and JS.
+        // LinkedBlockingQueue does not allow null, so we use a sentinel to signal done.
+        private const val DONE_SENTINEL = "__done__"
+        private val storyQueue = LinkedBlockingQueue<String>(1)
+
         @Volatile private var storyReadyLatch: CountDownLatch? = null
+
+        /**
+         * Called by the test thread to enqueue the next story for JS to render.
+         * Pass null to signal that all stories are done.
+         *
+         * Blocks until JS has consumed the previous entry (queue capacity = 1).
+         */
+        fun pushStory(storyId: String?) {
+            storyQueue.put(storyId ?: DONE_SENTINEL)
+        }
 
         /**
          * Call before rendering each story. Creates a fresh latch for [awaitStoryReady].
@@ -72,18 +96,27 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     override fun getName(): String = "StorybookRegistry"
 
     /**
+     * Promise-based pull — resolves with the next story ID once the test runner
+     * pushes one via [pushStory], or null when the test runner signals done.
+     *
+     * The blocking queue.poll() runs on a background thread so the React Native
+     * JS thread is never blocked (replaces the deprecated isBlockingSynchronousMethod).
+     */
+    @ReactMethod
+    fun awaitNextStory(promise: Promise) {
+        Thread {
+            val raw = storyQueue.poll(30, TimeUnit.SECONDS)
+            promise.resolve(if (raw == DONE_SENTINEL) null else raw)
+        }.start()
+    }
+
+    /**
      * Called from JS when a story has finished rendering (or errored).
-     * Releases the latch that screenshotStory() is waiting on.
+     * Releases the latch that the test thread is waiting on.
      */
     @ReactMethod
     fun notifyStoryReady() {
         storyReadyLatch?.countDown()
-    }
-
-    fun loadStory(storyName: String) {
-        reactApplicationContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit("loadStory", storyName)
     }
 
 

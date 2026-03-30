@@ -4,8 +4,10 @@ import android.Manifest
 import android.graphics.PixelFormat
 import android.os.Bundle
 import android.util.Log
+import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
@@ -17,6 +19,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Base screenshot test that automatically discovers and tests all Storybook stories.
@@ -28,9 +32,18 @@ import java.io.File
  * class StoryScreenshotTest : BaseStoryScreenshotTest()
  * ```
  *
- * This test automatically bootstraps the story manifest if it doesn't exist,
- * then creates a screenshot for each story. No manual test methods needed -
- * just add stories to Storybook and they get tested automatically.
+ * Experiment: sync-story-blocking
+ * --------------------------------
+ * Instead of emitting loadStory events, the test thread pushes story IDs into a
+ * LinkedBlockingQueue. JS pulls them via the blocking synchronous awaitNextStory()
+ * call, which blocks the JS thread while native takes the screenshot. This inverts
+ * the control flow: JS pulls from native rather than native pushing to JS.
+ *
+ * A single React surface is mounted for the entire run. The JS component loops:
+ *   awaitNextStory() → render → notifyStoryReady() → awaitNextStory() → …
+ *
+ * The test thread drives the loop by pushing story IDs, waiting for notifyStoryReady,
+ * taking a screenshot, then pushing the next ID. A null push signals JS to stop.
  */
 abstract class BaseStoryScreenshotTest {
 
@@ -38,7 +51,7 @@ abstract class BaseStoryScreenshotTest {
         private const val TAG = "BaseStoryScreenshotTest"
         private const val DEFAULT_LOAD_TIMEOUT_MS = 5000L
         private const val DEFAULT_BOOTSTRAP_TIMEOUT_MS = 10000L
-        private const val BOOTSTRAP_STORY_NAME = "__bootstrap__"
+        private const val BOOTSTRAP_STORY_ID = "__bootstrap__"
 
         private const val SCREEN_WIDTH_PX = 1080
         private const val SCREEN_HEIGHT_PX = 1920
@@ -78,90 +91,86 @@ abstract class BaseStoryScreenshotTest {
 
     /**
      * Screenshots all stories found in the manifest.
-     * Each story gets its own screenshot named after its ID.
-     * If the manifest doesn't exist, it will be bootstrapped automatically.
+     *
+     * Mounts a single React surface for the entire run. JS blocks itself via
+     * awaitNextStory() between renders; the test thread drives the sequence by
+     * pushing story IDs and waiting for notifyStoryReady() after each render.
      */
     @Test
     fun screenshotAllStories() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val externalDir = context.getExternalFilesDir("screenshots")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val externalDir = instrumentation.targetContext.getExternalFilesDir("screenshots")!!
         val manifestFile = File(externalDir, StorybookRegistry.STORIES_FILE_NAME)
 
-        if (!manifestFile.exists()) {
-            Log.d(TAG, "Manifest not found, bootstrapping...")
-            bootstrapManifest(manifestFile)
-        }
-
-        val allStories = StorybookRegistry.getStoriesFromFile(externalDir!!)
-        val stories = allStories.filter { shouldScreenshotStory(it) }
-
-        Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
-        assertTrue("No stories found in manifest", stories.isNotEmpty())
-
-        var successCount = 0
-        var failureCount = 0
-        val failures = mutableListOf<String>()
-
-        for (story in stories) {
-            try {
-                screenshotStory(story)
-                successCount++
-            } catch (e: Exception) {
-                failureCount++
-                val errorMsg = "${story.title}/${story.name}: ${e.message}"
-                failures.add(errorMsg)
-                Log.e(TAG, "Failed to screenshot story: $errorMsg", e)
-            }
-        }
-
-        Log.d(TAG, "Screenshot results: $successCount passed, $failureCount failed")
-        if (failures.isNotEmpty()) {
-            Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
-        }
-
-        assertTrue(
-            "Some stories failed to screenshot: ${failures.joinToString(", ")}",
-            failures.isEmpty()
-        )
-    }
-
-    private fun screenshotStory(storyInfo: StoryInfo) {
-        val storyName = storyInfo.toStoryName()
-        Log.d(TAG, "Screenshotting: $storyName (id: ${storyInfo.id})")
-
+        // Push the bootstrap marker before mounting so JS unblocks immediately on mount.
         StorybookRegistry.prepareForNextStory()
-        renderStory(storyName) { view ->
-            StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
-            val screenshotName = storyInfo.id.replace("--", "_")
-            Screenshot.snap(view).setName(screenshotName).record()
-            Log.d(TAG, "Screenshot captured: $screenshotName")
-        }
-    }
+        StorybookRegistry.pushStory(BOOTSTRAP_STORY_ID)
 
-    private fun bootstrapManifest(manifestFile: File) {
-        Log.d(TAG, "Launching StoryRenderer to generate manifest...")
-        renderStory(BOOTSTRAP_STORY_NAME) {
+        mountSurface { view ->
+            // Wait for JS to register stories and write the manifest.
             waitForManifestFile(manifestFile)
+            StorybookRegistry.awaitStoryReady(getBootstrapTimeoutMs())
+            Log.d(TAG, "Bootstrap complete")
+
+            val allStories = StorybookRegistry.getStoriesFromFile(externalDir)
+            val stories = allStories.filter { shouldScreenshotStory(it) }
+            Log.d(TAG, "Found ${allStories.size} stories, ${stories.size} after filtering")
+            assertTrue("No stories found in manifest", stories.isNotEmpty())
+
+            val failures = mutableListOf<String>()
+
+            for (story in stories) {
+                try {
+                    // Push the next story ID — JS unblocks from awaitNextStory() and renders it.
+                    StorybookRegistry.prepareForNextStory()
+                    StorybookRegistry.pushStory(story.id)
+
+                    // Wait for JS to signal the story is rendered.
+                    StorybookRegistry.awaitStoryReady(getLoadTimeoutMs())
+
+                    // Two frames so Fabric's native view mutations are fully applied.
+                    waitTwoFrames()
+
+                    val screenshotName = story.id.replace("--", "_")
+                    instrumentation.runOnMainSync {
+                        // view.draw(canvas) can't capture children that have hardware display
+                        // lists. Force the entire tree to software so draw() sees all content.
+                        setLayerTypeSoftwareRecursively(view)
+                        Screenshot.snap(view).setName(screenshotName).record()
+                    }
+                    Log.d(TAG, "Screenshot captured: $screenshotName")
+                } catch (e: Exception) {
+                    failures.add("${story.title}/${story.name}: ${e.message}")
+                    Log.e(TAG, "Failed to screenshot story: ${story.id}", e)
+                }
+            }
+
+            // Signal JS that there are no more stories.
+            StorybookRegistry.pushStory(null)
+
+            Log.d(TAG, "Screenshot results: ${stories.size - failures.size} passed, ${failures.size} failed")
+            if (failures.isNotEmpty()) {
+                Log.e(TAG, "Failed stories:\n${failures.joinToString("\n")}")
+            }
+            assertTrue(
+                "Some stories failed to screenshot: ${failures.joinToString(", ")}",
+                failures.isEmpty()
+            )
         }
-        Log.d(TAG, "Bootstrap complete")
     }
 
     /**
-     * Renders the given story name into a view, calls [onRendered] with that view,
-     * then tears down. Handles both old arch (ReactRootView) and new arch (ReactSurface).
+     * Mounts a single React surface for the whole test run, calls [onMounted] with
+     * the view, then tears down. Handles both old arch (ReactRootView) and new arch
+     * (ReactSurface). No storyName prop is passed — JS drives itself via awaitNextStory().
      */
-    private fun renderStory(storyName: String, onRendered: (view: View) -> Unit) {
+    private fun mountSurface(onMounted: (view: View) -> Unit) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val app = instrumentation.targetContext.applicationContext as ReactApplication
-        val props = Bundle().apply { putString("storyName", storyName) }
 
         val reactHost = app.reactHost
         if (reactHost != null) {
             // New arch (Fabric/bridgeless): ReactHost + ReactSurface.
-            // Fabric won't commit its render tree until the surface's host view is parented
-            // to a real Window. Test processes don't have an Activity window, so we attach
-            // via WindowManager using TYPE_APPLICATION_OVERLAY (requires SYSTEM_ALERT_WINDOW).
-            // Wrap with the app theme so AppCompat widgets (e.g. Switch) resolve styled attrs.
             val context = ContextThemeWrapper(
                 instrumentation.targetContext,
                 instrumentation.targetContext.applicationInfo.theme
@@ -169,7 +178,7 @@ abstract class BaseStoryScreenshotTest {
             val surface = reactHost.createSurface(
                 context,
                 getMainComponentName(),
-                props
+                Bundle()
             )
 
             val view = surface.view
@@ -190,19 +199,18 @@ abstract class BaseStoryScreenshotTest {
             }
 
             instrumentation.runOnMainSync {
-                // Force software rendering so Screenshot.snap() can capture via draw(canvas).
-                // WindowManager views are hardware-accelerated by default; GPU content is
-                // invisible to a software canvas.
                 view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
                 wm.addView(view, params)
                 surface.start()
             }
 
-            onRendered(view)
-
-            instrumentation.runOnMainSync {
-                surface.stop()
-                wm.removeView(view)
+            try {
+                onMounted(view)
+            } finally {
+                instrumentation.runOnMainSync {
+                    surface.stop()
+                    wm.removeView(view)
+                }
             }
         } else {
             // Old arch: ReactRootView + ReactInstanceManager (deprecated API).
@@ -212,21 +220,45 @@ abstract class BaseStoryScreenshotTest {
             @Suppress("DEPRECATION")
             val reactInstanceManager = app.reactNativeHost.reactInstanceManager
 
-            // ReactRootView.startReactApplication() checks isOnUiThread() internally.
             instrumentation.runOnMainSync {
-                rootView.startReactApplication(reactInstanceManager, getMainComponentName(), props)
+                rootView.startReactApplication(reactInstanceManager, getMainComponentName(), Bundle())
             }
 
-            // setupView().layout() calls measure()+layout() at the fixed dimensions, which
-            // triggers onMeasure() → attachToReactInstanceManager() on the ReactRootView.
             ViewHelpers.setupView(rootView)
                 .setExactWidthPx(SCREEN_WIDTH_PX)
                 .setExactHeightPx(SCREEN_HEIGHT_PX)
                 .layout()
 
-            onRendered(rootView)
+            try {
+                onMounted(rootView)
+            } finally {
+                instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+            }
+        }
+    }
 
-            instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+    /**
+     * Recursively sets LAYER_TYPE_SOFTWARE on every view in the tree.
+     * view.draw(canvas) skips children that have hardware display lists;
+     * forcing software rendering on all nodes ensures the full tree is captured.
+     */
+    private fun setLayerTypeSoftwareRecursively(view: View) {
+        view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                setLayerTypeSoftwareRecursively(view.getChildAt(i))
+            }
+        }
+    }
+
+    private fun waitTwoFrames() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        repeat(2) {
+            val latch = CountDownLatch(1)
+            instrumentation.runOnMainSync {
+                Choreographer.getInstance().postFrameCallback { latch.countDown() }
+            }
+            latch.await(1000, TimeUnit.MILLISECONDS)
         }
     }
 
