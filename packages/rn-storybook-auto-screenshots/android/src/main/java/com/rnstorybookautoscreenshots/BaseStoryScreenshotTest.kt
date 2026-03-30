@@ -107,6 +107,10 @@ abstract class BaseStoryScreenshotTest {
                 waitTwoFrames()
                 val screenshotName = storyId.replace("--", "_")
                 instrumentation.runOnMainSync {
+                    ViewHelpers.setupView(view)
+                        .setExactWidthPx(SCREEN_WIDTH_PX)
+                        .setExactHeightPx(SCREEN_HEIGHT_PX)
+                        .layout()
                     Screenshot.snap(view).setName(screenshotName).record()
                 }
                 Log.d(TAG, "Screenshot captured: $screenshotName")
