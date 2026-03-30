@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.Choreographer
 import android.view.ContextThemeWrapper
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
@@ -132,10 +133,9 @@ abstract class BaseStoryScreenshotTest {
 
                     val screenshotName = story.id.replace("--", "_")
                     instrumentation.runOnMainSync {
-                        ViewHelpers.setupView(view)
-                            .setExactWidthPx(SCREEN_WIDTH_PX)
-                            .setExactHeightPx(SCREEN_HEIGHT_PX)
-                            .layout()
+                        // view.draw(canvas) can't capture children that have hardware display
+                        // lists. Force the entire tree to software so draw() sees all content.
+                        setLayerTypeSoftwareRecursively(view)
                         Screenshot.snap(view).setName(screenshotName).record()
                     }
                     Log.d(TAG, "Screenshot captured: $screenshotName")
@@ -229,6 +229,20 @@ abstract class BaseStoryScreenshotTest {
                 onMounted(rootView)
             } finally {
                 instrumentation.runOnMainSync { rootView.unmountReactApplication() }
+            }
+        }
+    }
+
+    /**
+     * Recursively sets LAYER_TYPE_SOFTWARE on every view in the tree.
+     * view.draw(canvas) skips children that have hardware display lists;
+     * forcing software rendering on all nodes ensures the full tree is captured.
+     */
+    private fun setLayerTypeSoftwareRecursively(view: View) {
+        view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                setLayerTypeSoftwareRecursively(view.getChildAt(i))
             }
         }
     }
