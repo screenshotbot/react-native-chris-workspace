@@ -11,6 +11,9 @@ const { configure, StoryRenderer } = require('rn-storybook-auto-screenshots');
 configure(view);
 AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);
 
+const { SimpleComponent } = require('rn-storybook-auto-screenshots');
+AppRegistry.registerComponent('SimpleComponent', () => SimpleComponent);
+
 // Modes: 'app' | 'storybook'
 const MODE = 'app';
 
