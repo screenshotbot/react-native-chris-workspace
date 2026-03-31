@@ -16,6 +16,7 @@ import androidx.test.rule.GrantPermissionRule
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactRootView
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
