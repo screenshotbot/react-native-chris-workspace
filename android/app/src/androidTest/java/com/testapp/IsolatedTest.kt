@@ -13,6 +13,7 @@ class IsolatedTest {
 
     @Test
     fun constructViewTest() {
-        val test = ReactRootView(InstrumentationRegistry.getInstrumentation().targetContext);
+        val view = ReactRootView(InstrumentationRegistry.getInstrumentation().targetContext)
+        assertTrue(view != null)
     }
 }
