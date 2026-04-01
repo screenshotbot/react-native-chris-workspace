@@ -32,6 +32,11 @@ class IsolatedTest {
         val view = View(context).also {
             it.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(100, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(100, View.MeasureSpec.EXACTLY)
+        )
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
         Screenshot.snap(view).setName("plain_view").record()
     }
 }
