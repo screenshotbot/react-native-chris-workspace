@@ -2,7 +2,7 @@
  * @format
  */
 
-import { AppRegistry } from 'react-native';
+import { AppRegistry, View, Text } from 'react-native';
 import { name as appName } from './app.json';
 
 // Configure and register StoryRenderer for screenshot tests
@@ -13,6 +13,9 @@ AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);
 
 const { SimpleComponent } = require('rn-storybook-auto-screenshots');
 AppRegistry.registerComponent('SimpleComponent', () => SimpleComponent);
+
+const SimpleTestComponent = () => <View><Text>Hello</Text></View>;
+AppRegistry.registerComponent('SimpleTestComponent', () => SimpleTestComponent);
 
 // Modes: 'app' | 'storybook'
 const MODE = 'app';
