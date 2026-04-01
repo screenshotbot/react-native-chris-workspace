@@ -1,7 +1,9 @@
 package com.rnstorybookautoscreenshots
 
+import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.facebook.testing.screenshot.Screenshot
 import com.testapp.MainApplication
 import junit.framework.TestCase.assertNotNull
 import junit.framework.TestCase.assertTrue
@@ -22,5 +24,14 @@ class IsolatedTest {
         val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
         surface.start()
         assertNotNull(surface.view)
+    }
+
+    @Test
+    fun screenshotPlainView() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val view = View(context).also {
+            it.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        }
+        Screenshot.snap(view).setName("plain_view").record()
     }
 }
