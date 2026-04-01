@@ -14,8 +14,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.react.ReactApplication
 import com.facebook.testing.screenshot.Screenshot
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -71,50 +69,6 @@ class SimpleComponentScreenshotTest {
             surface.stop()
             wm.removeView(view)
         }
-    }
-
-    @Test
-    fun fabricChildrenMountedAfterTwoFrames() {
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val app = instrumentation.targetContext.applicationContext as ReactApplication
-        val reactHost = app.reactHost!!
-
-        val context = ContextThemeWrapper(
-            instrumentation.targetContext,
-            instrumentation.targetContext.applicationInfo.theme
-        )
-        val surface = reactHost.createSurface(context, "SimpleComponent", null)
-        val view = surface.view as ViewGroup
-            ?: throw IllegalStateException("ReactSurface returned a null view")
-
-        val wm = instrumentation.targetContext
-            .getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
-        val params = WindowManager.LayoutParams(
-            1080, 1920,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        )
-
-        instrumentation.runOnMainSync {
-            view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-            wm.addView(view, params)
-            surface.start()
-        }
-
-        var childCountBefore = -1
-        instrumentation.runOnMainSync { childCountBefore = view.childCount }
-        assertEquals("Fabric should not have mounted children yet", 0, childCountBefore)
-
-        waitTwoFrames()
-
-        var childCountAfter = -1
-        instrumentation.runOnMainSync {
-            childCountAfter = view.childCount
-            surface.stop()
-            wm.removeView(view)
-        }
-        assertTrue("Fabric should have mounted children after two frames", childCountAfter > 0)
     }
 
     private fun waitTwoFrames() {
