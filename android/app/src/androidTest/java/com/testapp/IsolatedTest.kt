@@ -7,6 +7,7 @@ import junit.framework.TestCase.assertNotNull
 import junit.framework.TestCase.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.facebook.testing.screenshot.ViewHelpers
 
 @RunWith(AndroidJUnit4::class)
 class IsolatedTest {
@@ -22,5 +23,10 @@ class IsolatedTest {
         val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
         surface.start()
         assertNotNull(surface.view)
+
+        ViewHelpers.setupView(surface.view!!)
+            .setExactHeightPx(100)
+            .setExactWidthPx(100)
+            .layout()
     }
 }
