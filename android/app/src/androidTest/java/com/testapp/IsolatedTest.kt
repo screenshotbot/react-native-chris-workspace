@@ -26,8 +26,8 @@ class IsolatedTest {
         assertNotNull(surface.view)
 
         ViewHelpers.setupView(surface.view!!)
-            .setExactHeightPx(100)
-            .setExactWidthPx(100)
+            .setExactHeightPx(1000)
+            .setExactWidthPx(1000)
             .layout()
 
         Screenshot.snap(surface.view!!)
