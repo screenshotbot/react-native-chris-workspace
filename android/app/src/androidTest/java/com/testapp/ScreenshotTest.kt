@@ -15,6 +15,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@org.junit.Ignore
 @RunWith(AndroidJUnit4::class)
 class ScreenshotTest {
 

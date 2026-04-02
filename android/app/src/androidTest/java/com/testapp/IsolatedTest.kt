@@ -9,6 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import com.facebook.testing.screenshot.ViewHelpers
 import com.facebook.testing.screenshot.Screenshot
+import org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4::class)
 class IsolatedTest {
@@ -22,13 +23,17 @@ class IsolatedTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val app = context.applicationContext as MainApplication
         val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
+        assertEquals("SimpleTestComponent", surface.moduleName)
         surface.start()
+
         assertNotNull(surface.view)
 
         ViewHelpers.setupView(surface.view!!)
             .setExactHeightPx(1000)
             .setExactWidthPx(1000)
             .layout()
+
+        surface.prerender()
 
         Screenshot.snap(surface.view!!)
             .record()
