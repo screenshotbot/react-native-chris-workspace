@@ -31,5 +31,6 @@ class IsolatedTest {
             .layout()
 
         Screenshot.snap(surface.view!!)
+            .record()
     }
 }
