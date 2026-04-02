@@ -95,8 +95,7 @@ android {
         versionCode 1
         versionName "1.0"
 
-        testInstrumentationRunner "com.rnstorybookautoscreenshots.BaseScreenshotTestRunner"
-        testInstrumentationRunnerArguments useTestStorageService: "true"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
         debug {
