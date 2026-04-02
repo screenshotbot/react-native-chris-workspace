@@ -1,26 +1,27 @@
 package com.rnstorybookautoscreenshots
 
+import android.graphics.Color
+import android.widget.TextView
+import androidx.test.annotation.UiThreadTest
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.testapp.MainApplication
-import junit.framework.TestCase.assertNotNull
-import junit.framework.TestCase.assertTrue
+import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class IsolatedTest {
-    @Test
-    fun simpleTest() {
-        assertTrue(true)
-    }
 
+    @UiThreadTest
     @Test
-    fun constructViewTest() {
+    fun screenshotNativeView() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val app = context.applicationContext as MainApplication
-        val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
-        surface.start()
-        assertNotNull(surface.view)
+        val view = TextView(context).apply {
+            text = "Hello Screenshot"
+            setBackgroundColor(Color.WHITE)
+        }
+        ViewHelpers.setupView(view).setExactWidthPx(400).setExactHeightPx(100).layout()
+        Screenshot.snap(view).setName("native_view").record()
     }
 }
