@@ -8,6 +8,7 @@ import junit.framework.TestCase.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import com.facebook.testing.screenshot.ViewHelpers
+import com.facebook.testing.screenshot.Screenshot
 
 @RunWith(AndroidJUnit4::class)
 class IsolatedTest {
@@ -28,5 +29,7 @@ class IsolatedTest {
             .setExactHeightPx(100)
             .setExactWidthPx(100)
             .layout()
+
+        Screenshot.snap(surface.view!!)
     }
 }
