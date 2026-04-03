@@ -1,9 +1,16 @@
 package com.rnstorybookautoscreenshots
 
+import android.Manifest
 import android.app.Application
+import android.graphics.PixelFormat
+import android.view.View
+import android.view.WindowManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.rule.GrantPermissionRule
 import com.facebook.react.PackageList
+import com.facebook.react.bridge.ReactMarker
+import com.facebook.react.bridge.ReactMarkerConstants
 import com.facebook.react.common.annotations.UnstableReactNativeAPI
 import com.facebook.react.bridge.JSBundleLoader
 import com.facebook.react.defaults.DefaultComponentsRegistry
@@ -14,15 +21,22 @@ import com.facebook.react.runtime.ReactHostImpl
 import com.facebook.react.runtime.hermes.HermesInstance
 import junit.framework.TestCase.assertNotNull
 import junit.framework.TestCase.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import com.facebook.testing.screenshot.ViewHelpers
 import com.facebook.testing.screenshot.Screenshot
 import org.junit.Assert.*;
 import com.facebook.react.interfaces.*
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class IsolatedTest {
+
+    @get:Rule
+    val overlayPermission: GrantPermissionRule =
+        GrantPermissionRule.grant(Manifest.permission.SYSTEM_ALERT_WINDOW)
+
     @Test
     fun simpleTest() {
         assertTrue(true)
@@ -31,7 +45,8 @@ class IsolatedTest {
     @OptIn(UnstableReactNativeAPI::class)
     @Test
     fun constructViewTest() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
         val app = context.applicationContext as Application
 
         val bundleLoader = JSBundleLoader.createAssetLoader(
@@ -56,24 +71,47 @@ class IsolatedTest {
 
         val surface = reactHost.createSurface(context, "SimpleTestComponent", null)
         assertEquals("SimpleTestComponent", surface.moduleName)
-
-        // TODO: we aren't 100% sure if prerender() and start() are being called the way we want it to.
-        assertGoodTask(surface.prerender())
-
-
         assertNotNull(surface.view)
 
-        ViewHelpers.setupView(surface.view!!)
-            .setExactHeightPx(1000)
-            .setExactWidthPx(1000)
-            .layout()
+        val view = surface.view!!
+        val wm = context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager
+        val params = WindowManager.LayoutParams(
+            1080,
+            1920,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            // alpha=0 so the compositor skips drawing while Fabric still sees a real Window.
+            alpha = 0f
+        }
 
+        val renderLatch = CountDownLatch(1)
+        val markerListener = ReactMarker.MarkerListener { name, _, _ ->
+            if (name == ReactMarkerConstants.CONTENT_APPEARED) renderLatch.countDown()
+        }
+        ReactMarker.addListener(markerListener)
 
-        val ti = surface.start()
-        assertGoodTask(ti)
+        try {
+            instrumentation.runOnMainSync {
+                // RESUMED state is required for Fabric to commit mutations to the view.
+                reactHost.onHostResume(null)
+                // Software rendering so Screenshot.snap() can capture via draw(canvas).
+                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                wm.addView(view, params)
+                surface.start()
+            }
 
-        Screenshot.snap(surface.view!!)
-            .record()
+            assertTrue("Timed out waiting for first render", renderLatch.await(10, TimeUnit.SECONDS))
+
+            Screenshot.snap(view).record()
+        } finally {
+            ReactMarker.removeListener(markerListener)
+            instrumentation.runOnMainSync {
+                surface.stop()
+                wm.removeView(view)
+            }
+        }
     }
 }
 
