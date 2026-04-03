@@ -2,6 +2,7 @@ package com.rnstorybookautoscreenshots
 
 import android.Manifest
 import android.app.Application
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.view.View
 import android.view.WindowManager
@@ -98,6 +99,7 @@ class IsolatedTest {
                 reactHost.onHostResume(null)
                 // Software rendering so Screenshot.snap() can capture via draw(canvas).
                 view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                view.setBackgroundColor(Color.WHITE)
                 wm.addView(view, params)
                 surface.start()
             }
