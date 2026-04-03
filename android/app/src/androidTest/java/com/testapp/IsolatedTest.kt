@@ -1,8 +1,17 @@
 package com.rnstorybookautoscreenshots
 
+import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.testapp.MainApplication
+import com.facebook.react.PackageList
+import com.facebook.react.common.annotations.UnstableReactNativeAPI
+import com.facebook.react.bridge.JSBundleLoader
+import com.facebook.react.defaults.DefaultComponentsRegistry
+import com.facebook.react.defaults.DefaultReactHostDelegate
+import com.facebook.react.defaults.DefaultTurboModuleManagerDelegate
+import com.facebook.react.fabric.ComponentFactory
+import com.facebook.react.runtime.ReactHostImpl
+import com.facebook.react.runtime.hermes.HermesInstance
 import junit.framework.TestCase.assertNotNull
 import junit.framework.TestCase.assertTrue
 import org.junit.Test
@@ -19,16 +28,36 @@ class IsolatedTest {
         assertTrue(true)
     }
 
+    @OptIn(UnstableReactNativeAPI::class)
     @Test
     fun constructViewTest() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val app = context.applicationContext as MainApplication
-        val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
+        val app = context.applicationContext as Application
+
+        val bundleLoader = JSBundleLoader.createAssetLoader(
+            context, "assets://index.android.bundle", true)
+        val delegate = DefaultReactHostDelegate(
+            jsMainModulePath = "index",
+            jsBundleLoader = bundleLoader,
+            reactPackages = PackageList(app).packages,
+            jsRuntimeFactory = HermesInstance(),
+            turboModuleManagerDelegateBuilder = DefaultTurboModuleManagerDelegate.Builder(),
+            exceptionHandler = { throw it },
+        )
+        val componentFactory = ComponentFactory()
+        DefaultComponentsRegistry.register(componentFactory)
+        val reactHost = ReactHostImpl(
+            context,
+            delegate,
+            componentFactory,
+            false, // allowPackagerServerAccess
+            false, // useDevSupport
+        )
+
+        val surface = reactHost.createSurface(context, "SimpleTestComponent", null)
         assertEquals("SimpleTestComponent", surface.moduleName)
 
         // TODO: we aren't 100% sure if prerender() and start() are being called the way we want it to.
-        // We probably want to create a ReactHost directly instead of taking it from the MainApplication... probably
-        // Also look up bridge-less mode.
         assertGoodTask(surface.prerender())
 
 
