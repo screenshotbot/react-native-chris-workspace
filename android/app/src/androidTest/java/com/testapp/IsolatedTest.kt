@@ -88,7 +88,9 @@ class IsolatedTest {
             }
 
             assertTrue("Timed out waiting for first render", renderLatch.await(10, TimeUnit.SECONDS))
-            Screenshot.snap(view).record()
+            instrumentation.runOnMainSync {
+                Screenshot.snap(view).record()
+            }
         } finally {
             ReactMarker.removeListener(markerListener)
             instrumentation.runOnMainSync {
