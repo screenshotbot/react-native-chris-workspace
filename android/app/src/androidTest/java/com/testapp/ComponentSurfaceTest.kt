@@ -1,51 +1,45 @@
 package com.rnstorybookautoscreenshots
 
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
-class ComponentSurfaceTest(private val componentName: String) {
-
-    companion object {
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun components() = listOf(
-            // Button story variants
-            arrayOf("Button_Primary"),
-            arrayOf("Button_Secondary"),
-            arrayOf("Button_Large"),
-            arrayOf("Button_Small"),
-
-            // Header story variants
-            arrayOf("Header_LoggedIn"),
-            arrayOf("Header_LoggedOut"),
-
-            // MyFeature story variants
-            arrayOf("MyFeature_Initial"),
-            arrayOf("MyFeature_WithClicks"),
-            arrayOf("MyFeature_ManyClicks"),
-
-            // SwitchFeature story variants
-            arrayOf("SwitchFeature_Off"),
-            arrayOf("SwitchFeature_On"),
-
-            // TimerFeature story variants
-            arrayOf("TimerFeature_Initial"),
-            arrayOf("TimerFeature_Running"),
-            arrayOf("TimerFeature_Paused"),
-            arrayOf("TimerFeature_LongDuration"),
-
-            // CoinFlipFeature story variants
-            arrayOf("CoinFlipFeature_Default"),
-            arrayOf("CoinFlipFeature_Heads"),
-            arrayOf("CoinFlipFeature_Tails"),
-            arrayOf("CoinFlipFeature_ManyFlips"),
-        )
-    }
+@RunWith(AndroidJUnit4::class)
+class ComponentSurfaceTest {
 
     @Test
-    fun screenshot() {
-        ReactHostFixture.screenshotComponent(componentName)
+    fun screenshotAll() {
+        ReactHostFixture.screenshotAll(listOf(
+            // Button story variants
+            "Button_Primary",
+            "Button_Secondary",
+            "Button_Large",
+            "Button_Small",
+
+            // Header story variants
+            "Header_LoggedIn",
+            "Header_LoggedOut",
+
+            // MyFeature story variants
+            "MyFeature_Initial",
+            "MyFeature_WithClicks",
+            "MyFeature_ManyClicks",
+
+            // SwitchFeature story variants
+            "SwitchFeature_Off",
+            "SwitchFeature_On",
+
+            // TimerFeature story variants
+            "TimerFeature_Initial",
+            "TimerFeature_Running",
+            "TimerFeature_Paused",
+            "TimerFeature_LongDuration",
+
+            // CoinFlipFeature story variants
+            "CoinFlipFeature_Default",
+            "CoinFlipFeature_Heads",
+            "CoinFlipFeature_Tails",
+            "CoinFlipFeature_ManyFlips",
+        ))
     }
 }

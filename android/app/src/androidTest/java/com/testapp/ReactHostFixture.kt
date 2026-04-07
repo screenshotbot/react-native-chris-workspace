@@ -12,6 +12,7 @@ import com.facebook.react.defaults.DefaultComponentsRegistry
 import com.facebook.react.defaults.DefaultReactHostDelegate
 import com.facebook.react.defaults.DefaultTurboModuleManagerDelegate
 import com.facebook.react.fabric.ComponentFactory
+import com.facebook.react.interfaces.fabric.ReactSurface
 import com.facebook.react.runtime.ReactHostImpl
 import com.facebook.react.runtime.hermes.HermesInstance
 import com.facebook.testing.screenshot.ViewHelpers
@@ -50,47 +51,56 @@ object ReactHostFixture {
     }
 
     /**
-     * Creates a surface for [componentName], waits for the JS component to call
-     * ScreenshotHelper.takeScreenshot (via useEffect), then tears down.
+     * Starts all [componentNames] surfaces simultaneously, waits for each JS component
+     * to call ScreenshotHelper.takeScreenshot, then tears everything down.
      *
-     * The screenshot is taken inside the native module on the JS callback, so the
-     * timing is driven by the JS render cycle rather than native heuristics.
+     * All surfaces are attached and started in a single runOnMainSync, so the JS thread
+     * queues work for all of them at once instead of waiting for each test to finish
+     * before the next begins.
      */
     @OptIn(UnstableReactNativeAPI::class)
-    fun screenshotComponent(componentName: String) {
+    fun screenshotAll(componentNames: List<String>) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val context = ContextThemeWrapper(instrumentation.targetContext, R.style.AppTheme)
+        val latch = CountDownLatch(componentNames.size)
+        ScreenshotHelperModule.sharedLatch = latch
 
-        val surface = reactHost.createSurface(context, componentName, null)
-        assertNotNull(surface.view)
-        val view = surface.view!!
+        val surfaces = mutableListOf<ReactSurface>()
+        val detachers = mutableListOf<WindowAttachment.Detacher?>()
 
-        val latch = CountDownLatch(1)
-        ScreenshotHelperModule.pendingView = WeakReference(view)
-        ScreenshotHelperModule.pendingLatch = latch
-
-        var detacher: WindowAttachment.Detacher? = null
+        componentNames.forEach { name ->
+            val context = ContextThemeWrapper(instrumentation.targetContext, R.style.AppTheme)
+            val surface = reactHost.createSurface(context, name, null)
+            assertNotNull("No view for $name", surface.view)
+            ScreenshotHelperModule.pendingViews[name] = WeakReference(surface.view!!)
+            surfaces.add(surface)
+            detachers.add(null)
+        }
 
         try {
             instrumentation.runOnMainSync {
-                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-                view.setBackgroundColor(Color.WHITE)
-                detacher = WindowAttachment.dispatchAttach(view)
-                ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
-                surface.start()
+                surfaces.forEachIndexed { i, surface ->
+                    val view = surface.view!!
+                    view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                    view.setBackgroundColor(Color.WHITE)
+                    detachers[i] = WindowAttachment.dispatchAttach(view)
+                    ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
+                    surface.start()
+                }
             }
 
             assertTrue(
-                "Timed out waiting for JS to call takeScreenshot: $componentName",
-                latch.await(10, TimeUnit.SECONDS)
+                "Timed out waiting for all screenshots: $componentNames",
+                latch.await(60, TimeUnit.SECONDS)
             )
         } finally {
-            ScreenshotHelperModule.pendingView = null
-            ScreenshotHelperModule.pendingLatch = null
+            ScreenshotHelperModule.pendingViews.clear()
+            ScreenshotHelperModule.sharedLatch = null
             instrumentation.runOnMainSync {
-                surface.stop()
-                detacher?.detach()
+                surfaces.forEach { it.stop() }
+                detachers.forEach { it?.detach() }
             }
         }
     }
+
+    fun screenshotComponent(componentName: String) = screenshotAll(listOf(componentName))
 }
