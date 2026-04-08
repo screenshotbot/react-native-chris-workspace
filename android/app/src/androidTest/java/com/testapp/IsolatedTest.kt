@@ -3,6 +3,7 @@ package com.rnstorybookautoscreenshots
 import android.app.Application
 import android.graphics.Color
 import android.view.View
+import android.view.ViewTreeObserver
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.facebook.react.PackageList
@@ -68,6 +69,7 @@ class IsolatedTest {
         val view = surface.view!!
 
         var detacher: WindowAttachment.Detacher? = null
+        val renderLatch = CountDownLatch(1)
 
         try {
             instrumentation.runOnMainSync {
@@ -76,7 +78,23 @@ class IsolatedTest {
                 view.setBackgroundColor(Color.WHITE)
                 detacher = WindowAttachment.dispatchAttach(view)
                 ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
+
+                view.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+                    override fun onGlobalLayout() {
+                        if (view.childCount > 0) {
+                            view.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                            renderLatch.countDown()
+                        }
+                    }
+                })
+
                 surface.start()
+            }
+
+            // Wait until React Native has rendered child views into the surface
+            renderLatch.await(30, TimeUnit.SECONDS)
+
+            instrumentation.runOnMainSync {
                 Screenshot.snap(view).setName("SimpleTestComponent").record()
             }
         } finally {
