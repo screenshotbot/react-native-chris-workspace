@@ -3,7 +3,6 @@ package com.rnstorybookautoscreenshots
 import android.app.Application
 import android.graphics.Color
 import android.view.View
-import android.view.ViewTreeObserver
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.facebook.react.PackageList
@@ -24,8 +23,6 @@ import com.facebook.testing.screenshot.ViewHelpers
 import com.facebook.testing.screenshot.WindowAttachment
 import org.junit.Assert.*;
 import com.facebook.react.interfaces.*
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class IsolatedTest {
@@ -69,7 +66,7 @@ class IsolatedTest {
         val view = surface.view!!
 
         var detacher: WindowAttachment.Detacher? = null
-        val renderLatch = CountDownLatch(1)
+        var startTask: com.facebook.react.interfaces.TaskInterface<Void>? = null
 
         try {
             instrumentation.runOnMainSync {
@@ -78,21 +75,20 @@ class IsolatedTest {
                 view.setBackgroundColor(Color.WHITE)
                 detacher = WindowAttachment.dispatchAttach(view)
                 ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
-
-                view.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-                    override fun onGlobalLayout() {
-                        if (view.childCount > 0) {
-                            view.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                            renderLatch.countDown()
-                        }
-                    }
-                })
-
-                surface.start()
+                startTask = surface.start()
             }
 
-            // Wait until React Native has rendered child views into the surface
-            renderLatch.await(30, TimeUnit.SECONDS)
+            // Wait for the surface start task to complete off the main thread.
+            assertGoodTask(startTask!!)
+
+            // Poll until Fabric has mounted child views into the surface.
+            val deadline = System.currentTimeMillis() + 30_000
+            var hasChildren = false
+            while (!hasChildren && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50)
+                instrumentation.runOnMainSync { hasChildren = view.childCount > 0 }
+            }
+            assertTrue("Timed out waiting for React Native to render content", hasChildren)
 
             instrumentation.runOnMainSync {
                 Screenshot.snap(view).setName("SimpleTestComponent").record()
