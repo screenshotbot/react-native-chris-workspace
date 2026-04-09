@@ -55,6 +55,46 @@ class IsolatedTest {
     }
 
     @Test
+    fun hierarchyListenerTest() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val app = context.applicationContext as MainApplication
+        val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
+
+        val view = surface.view!! as android.view.ViewGroup
+        val latch = CountDownLatch(1)
+        var detacher: WindowAttachment.Detacher? = null
+
+        try {
+            instrumentation.runOnMainSync {
+                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                view.setBackgroundColor(Color.WHITE)
+                view.setOnHierarchyChangeListener(object : android.view.ViewGroup.OnHierarchyChangeListener {
+                    override fun onChildViewAdded(parent: View, child: View) {
+                        view.setOnHierarchyChangeListener(null)
+                        latch.countDown()
+                    }
+                    override fun onChildViewRemoved(parent: View, child: View) {}
+                })
+                detacher = WindowAttachment.dispatchAttach(view)
+                app.reactHost.onHostResume(null)
+                ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
+                surface.start()
+            }
+
+            assertTrue(
+                "Timed out waiting for Fabric to mount first child",
+                latch.await(30, TimeUnit.SECONDS)
+            )
+        } finally {
+            instrumentation.runOnMainSync {
+                surface.stop()
+                detacher?.detach()
+            }
+        }
+    }
+
+    @Test
     fun addViewHookTest() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
