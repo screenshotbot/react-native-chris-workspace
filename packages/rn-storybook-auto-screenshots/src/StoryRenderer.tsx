@@ -143,6 +143,13 @@ export function StoryRenderer({ storyName = 'MyFeature/Initial' }: StoryRenderer
   );
 }
 
+// NOTE: _storyIndex, _idToPrepared, _preview, and createPreparedStoryMapping are
+// internal APIs on the View class (underscore-prefixed). @storybook/react-native does
+// not expose a public API for programmatic story rendering — getStorybookUI() is the
+// only public rendering path. We rely on these internals because there is no alternative.
+// Verified against @storybook/react-native ^10.0.0. If Storybook exposes a public API
+// in a future version, we should migrate to it.
+
 /**
  * Get all available story IDs from Storybook's registry.
  */
