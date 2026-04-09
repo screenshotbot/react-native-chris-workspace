@@ -1,5 +1,7 @@
 package com.rnstorybookautoscreenshots
 
+import android.graphics.Color
+import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.testapp.MainApplication
@@ -9,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import com.facebook.testing.screenshot.ViewHelpers
 import com.facebook.testing.screenshot.Screenshot
+import com.facebook.testing.screenshot.WindowAttachment
 import org.junit.Assert.*;
 import com.facebook.react.interfaces.*
 
@@ -45,6 +48,81 @@ class IsolatedTest {
 
         Screenshot.snap(surface.view!!)
             .record()
+    }
+
+    @Test
+    fun childCountTest() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val app = context.applicationContext as MainApplication
+        val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
+
+        val view = surface.view!!
+        var detacher: WindowAttachment.Detacher? = null
+
+        try {
+            instrumentation.runOnMainSync {
+                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                view.setBackgroundColor(Color.WHITE)
+                detacher = WindowAttachment.dispatchAttach(view)
+                app.reactHost.onHostResume(null)
+                ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
+                surface.start()
+            }
+
+            val deadline = System.currentTimeMillis() + 30_000
+            var hasChildren = false
+            while (!hasChildren && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50)
+                instrumentation.runOnMainSync { hasChildren = view.childCount > 0 }
+            }
+            assertTrue("Timed out waiting for children", hasChildren)
+        } finally {
+            instrumentation.runOnMainSync {
+                surface.stop()
+                detacher?.detach()
+            }
+        }
+    }
+
+    @Test
+    fun childCountScreenshotTest() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val app = context.applicationContext as MainApplication
+        val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
+
+        val view = surface.view!!
+        var detacher: WindowAttachment.Detacher? = null
+
+        try {
+            instrumentation.runOnMainSync {
+                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                view.setBackgroundColor(Color.WHITE)
+                detacher = WindowAttachment.dispatchAttach(view)
+                app.reactHost.onHostResume(null)
+                ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
+                surface.start()
+            }
+
+            val deadline = System.currentTimeMillis() + 30_000
+            var hasChildren = false
+            while (!hasChildren && System.currentTimeMillis() < deadline) {
+                Thread.sleep(50)
+                instrumentation.runOnMainSync { hasChildren = view.childCount > 0 }
+            }
+            assertTrue("Timed out waiting for children", hasChildren)
+
+            instrumentation.runOnMainSync {
+                ViewHelpers.setupView(view).setExactWidthPx(1080).setExactHeightPx(1920).layout()
+                Screenshot.snap(view).setName("childCountReadyTest").record()
+            }
+        } finally {
+            instrumentation.runOnMainSync {
+                surface.stop()
+                detacher?.detach()
+            }
+        }
     }
 }
 
