@@ -14,6 +14,9 @@ const { view } = require('./.rnstorybook/storybook.requires');
 // configure(view);
 // AppRegistry.registerComponent('StoryRenderer', () => StoryRenderer);
 
+const { SimpleComponent } = require('rn-storybook-auto-screenshots');
+AppRegistry.registerComponent('SimpleComponent', () => SimpleComponent);
+
 const SimpleTestComponent = () => <View><Text>Hello</Text></View>;
 AppRegistry.registerComponent('SimpleTestComponent', () => SimpleTestComponent);
 
