@@ -10,7 +10,6 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import com.facebook.testing.screenshot.Screenshot
-import com.facebook.testing.screenshot.ViewHelpers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,11 +52,12 @@ class ScreenshotTest {
         view.setBackgroundColor(Color.WHITE)
         view.setPadding(20, 20, 20, 20)
 
-        // Measure and layout the view
-        ViewHelpers.setupView(view)
-            .setExactWidthDp(300)
-            .setExactHeightDp(100)
-            .layout()
+        val density = view.resources.displayMetrics.density
+        view.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec((300 * density).toInt(), android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec((100 * density).toInt(), android.view.View.MeasureSpec.EXACTLY)
+        )
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
 
         // Take screenshot
         Screenshot.snap(view)
