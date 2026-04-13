@@ -10,8 +10,6 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import com.facebook.react.modules.core.DeviceEventManagerModule
-
 /**
  * Native module with two responsibilities:
  * - Receives the story list from JS and writes it to disk for test discovery.
@@ -25,6 +23,12 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
         @Volatile private var storyReadyLatch: CountDownLatch? = null
+        @Volatile private var instance: StorybookRegistry? = null
+
+        /** Emit a loadStory event to JS, switching the active story without remounting. */
+        fun loadStory(storyName: String) {
+            instance?.loadStory(storyName)
+        }
 
         /**
          * Call before rendering each story. Creates a fresh latch for [awaitStoryReady].
@@ -69,6 +73,10 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         }
     }
 
+    init {
+        instance = this
+    }
+
     override fun getName(): String = "StorybookRegistry"
 
     /**
@@ -81,9 +89,7 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     }
 
     fun loadStory(storyName: String) {
-        reactApplicationContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit("loadStory", storyName)
+        reactApplicationContext.emitDeviceEvent("loadStory", storyName)
     }
 
 
