@@ -50,22 +50,37 @@ class IsolatedTest {
 
     @Test
     fun childCountScreenshotTest() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
         val app = context.applicationContext as MainApplication
         val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
 
         assertGoodTask(surface.prerender())
 
         val view = surface.view!! as ViewGroup
-        view.measure(
-            View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY)
-        )
-        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+        var detacher: WindowAttachment.Detacher? = null
+        var startTask: TaskInterface<Void>? = null
 
-        assertGoodTask(surface.start())
+        try {
+            instrumentation.runOnMainSync {
+                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                detacher = WindowAttachment.dispatchAttach(view)
+                app.reactHost.onHostResume(null)
+                view.measure(
+                    View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY)
+                )
+                view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+                startTask = surface.start()
+            }
 
-        Screenshot.snap(view).record()
+            assertGoodTask(startTask!!)
+            waitUntil { view.childCount > 0 }
+
+            Screenshot.snap(view).record()
+        } finally {
+            instrumentation.runOnMainSync { detacher?.detach() }
+        }
     }
 
     @Test
