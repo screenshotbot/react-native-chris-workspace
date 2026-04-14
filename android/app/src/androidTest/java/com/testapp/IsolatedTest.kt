@@ -69,6 +69,41 @@ class IsolatedTest {
     }
 
     @Test
+    fun childCountSyncTest() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val app = context.applicationContext as MainApplication
+        val surface = app.reactHost.createSurface(context, "SimpleTestComponent", null)
+
+        assertGoodTask(surface.prerender())
+
+        val view = surface.view!! as ViewGroup
+        var detacher: WindowAttachment.Detacher? = null
+
+        var startTask: TaskInterface<Void>? = null
+
+        try {
+            instrumentation.runOnMainSync {
+                view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+                detacher = WindowAttachment.dispatchAttach(view)
+                app.reactHost.onHostResume(null)
+                view.measure(
+                    View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY)
+                )
+                view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+                startTask = surface.start()
+            }
+
+            assertGoodTask(startTask!!)
+            waitUntil { view.childCount > 0 }
+            assertTrue("Expected childCount > 0, but was ${view.childCount}", view.childCount > 0)
+        } finally {
+            instrumentation.runOnMainSync { detacher?.detach() }
+        }
+    }
+
+    @Test
     fun childCountTest() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
@@ -114,6 +149,14 @@ class IsolatedTest {
                 detacher?.detach()
             }
         }
+    }
+}
+
+fun waitUntil(timeoutMs: Long = 5000, condition: () -> Boolean) {
+    val deadline = System.currentTimeMillis() + timeoutMs
+    while (!condition()) {
+        check(System.currentTimeMillis() < deadline) { "Condition not met within ${timeoutMs}ms" }
+        Thread.sleep(16)
     }
 }
 
