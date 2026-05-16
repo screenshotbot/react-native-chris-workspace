@@ -1,6 +1,7 @@
 package com.rnstorybookautoscreenshots
 
 import android.util.Log
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -10,14 +11,23 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
- * Native module with two responsibilities:
+ * Native module with three responsibilities:
  * - Receives the story list from JS and writes it to disk for test discovery.
- * - Synchronises the test thread with JS rendering via a CountDownLatch.
+ * - Receives notifyStoryReady(storyId) from JS and holds the Promise until the
+ *   test thread has taken the screenshot and calls resolveCurrentStory().
+ * - Receives allStoriesDone() from JS to signal the test thread to exit.
+ *
+ * Communication flow:
+ *   JS thread   → notifyStoryReady(storyId, promise) → storyReadyLatch.countDown()
+ *   Test thread ← awaitStoryReady() ← storyReadyLatch
+ *   Test thread → takes screenshot → resolveCurrentStory() → promise.resolve()
+ *   JS thread   ← promise resolves → renders next story
+ *   ...
+ *   JS thread   → allStoriesDone() → allDoneLatch.countDown()
+ *   Test thread ← awaitAllDone() ← allDoneLatch
  */
-
 class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     companion object {
@@ -25,19 +35,51 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
         const val STORIES_FILE_NAME = "storybook_stories.json"
 
         @Volatile private var storyReadyLatch: CountDownLatch? = null
+        @Volatile private var allDoneLatch: CountDownLatch? = null
+        @Volatile private var pendingPromise: Promise? = null
+        @Volatile private var pendingStoryId: String? = null
+        @Volatile private var isDone = false
 
         /**
-         * Call before rendering each story. Creates a fresh latch for [awaitStoryReady].
+         * Call once before mounting the surface to set up the all-done latch.
          */
-        fun prepareForNextStory() {
-            storyReadyLatch = CountDownLatch(1)
+        fun prepareForRun() {
+            allDoneLatch = CountDownLatch(1)
+            isDone = false
         }
 
         /**
-         * Blocks until JS signals the story is rendered, or the timeout elapses.
+         * Call before each story to create a fresh latch for [awaitStoryReady].
          */
-        fun awaitStoryReady(timeoutMs: Long) {
+        fun prepareForNextStory() {
+            storyReadyLatch = CountDownLatch(1)
+            isDone = false
+            pendingStoryId = null
+        }
+
+        /**
+         * Blocks until JS calls notifyStoryReady() or allStoriesDone(), or the timeout elapses.
+         * Returns the story ID, or null if allStoriesDone() was called (or timeout).
+         */
+        fun awaitStoryReady(timeoutMs: Long): String? {
             storyReadyLatch?.await(timeoutMs, TimeUnit.MILLISECONDS)
+            return if (isDone) null else pendingStoryId
+        }
+
+        /**
+         * Resolves the Promise that notifyStoryReady() is holding.
+         * Call this after taking the screenshot to let JS proceed to the next story.
+         */
+        fun resolveCurrentStory() {
+            pendingPromise?.resolve(null)
+            pendingPromise = null
+        }
+
+        /**
+         * Blocks until JS calls allStoriesDone(), or the timeout elapses.
+         */
+        fun awaitAllDone(timeoutMs: Long) {
+            allDoneLatch?.await(timeoutMs, TimeUnit.MILLISECONDS)
         }
 
         /**
@@ -72,20 +114,28 @@ class StorybookRegistry(reactContext: ReactApplicationContext) : ReactContextBas
     override fun getName(): String = "StorybookRegistry"
 
     /**
-     * Called from JS when a story has finished rendering (or errored).
-     * Releases the latch that screenshotStory() is waiting on.
+     * Called from JS after a story has been rendered and committed to the view.
+     * Stores the Promise (so the test thread can resolve it after the screenshot)
+     * and releases [awaitStoryReady] so the test thread knows it can proceed.
      */
     @ReactMethod
-    fun notifyStoryReady() {
+    fun notifyStoryReady(storyId: String, promise: Promise) {
+        pendingStoryId = storyId
+        pendingPromise = promise
         storyReadyLatch?.countDown()
     }
 
-    fun loadStory(storyName: String) {
-        reactApplicationContext
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            ?.emit("loadStory", storyName)
+    /**
+     * Called from JS after all stories have been rendered.
+     * Releases [awaitAllDone] so the test thread can exit and unmount the surface.
+     */
+    @ReactMethod
+    fun allStoriesDone() {
+        isDone = true
+        // Release any thread waiting on awaitStoryReady (in case it's still waiting).
+        storyReadyLatch?.countDown()
+        allDoneLatch?.countDown()
     }
-
 
     /**
      * Called from JS to register the list of available stories.
