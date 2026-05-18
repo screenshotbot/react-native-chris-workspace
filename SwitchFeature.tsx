@@ -27,10 +27,6 @@ export default function SwitchFeature({ isEnabled, setIsEnabled }: SwitchFeature
         value={isEnabled}
       />
 
-      <Text style={[styles.status, { color: colors.text }]}>
-        {isEnabled ? '' : 'False'}
-      </Text>
-
       {/* Conditional image */}
       {isEnabled && (
         <Image
@@ -55,10 +51,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
     marginBottom: 10,
-  },
-  status: {
-    marginTop: 10,
-    fontSize: 16,
   },
   image: {
     marginTop: 20,
