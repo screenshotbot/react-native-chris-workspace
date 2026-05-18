@@ -90,7 +90,7 @@ jobs:
             ~/.android/adb*
           key: avd-26
 
-      - name: Run screenshot tests
+      - name: Record screenshot baselines
         env:
           EAASE_API_TOKEN: ${{ secrets.EAASE_API_TOKEN }}
           SCREENSHOTBOT_API_KEY: ${{ secrets.SCREENSHOTBOT_API_KEY }}
@@ -98,5 +98,11 @@ jobs:
         run: |
           # Prebuild the binaries before requesting the emulator
           ./android/gradlew -p android :app:assembleDebugAndroidTest
-          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordAndVerifyDebugScreenshotbotCI
+          ~/eaase/eaase run --api-level 33  -- ./android/gradlew -p android :app:recordDebugAndroidTestScreenshotTest
+
+      - name: Upload screenshot baselines as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-baselines
+          path: android/app/screenshots/
 

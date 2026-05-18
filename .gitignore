@@ -75,6 +75,7 @@ android/app/screenshots-default/
 android/app/screenshots/failures/
 screenshots/
 *.png
+!android/app/screenshots/*.png
 
 # Yarn
 .yarn/*
