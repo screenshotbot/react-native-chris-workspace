@@ -17,6 +17,13 @@ const { view } = require('./.rnstorybook/storybook.requires');
 const SimpleTestComponent = () => <View><Text>Hello</Text></View>;
 AppRegistry.registerComponent('SimpleTestComponent', () => SimpleTestComponent);
 
+AppRegistry.registerComponent('MyFeature', () => require('./MyFeature').default);
+AppRegistry.registerComponent('SwitchFeature', () => require('./SwitchFeature').default);
+AppRegistry.registerComponent('TimerFeature', () => require('./TimerFeature').default);
+AppRegistry.registerComponent('CoinFlipFeature', () => require('./CoinFlipFeature').default);
+AppRegistry.registerComponent('Button', () => require('./.rnstorybook/stories/Button').Button);
+AppRegistry.registerComponent('Header', () => require('./.rnstorybook/stories/Header').Header);
+
 // Modes: 'app' | 'storybook'
 const MODE = 'app';
 
